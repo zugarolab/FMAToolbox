@@ -25,7 +25,7 @@ Some functions in the toolbox depend on other Matlab toolboxes:
 
 ## License
 
-This toolbox was developed by [Michaël Zugaro](http://zugarolab.net) (CRNS-Collège de France, Paris, France). It is free software distributed under the [General Public License (GPL)](http://www.gnu.org/licenses/gpl.html).
+This toolbox was developed by [Michaël Zugaro and members of the team](http://zugarolab.net) (CRNS-Collège de France, Paris, France). It is free software distributed under the [General Public License (GPL)](http://www.gnu.org/licenses/gpl.html).
 
 ## Contents
 
