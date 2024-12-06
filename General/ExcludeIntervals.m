@@ -16,8 +16,11 @@ function [intervals,indices] = ExcludeIntervals(intervals1,intervals2,varargin)
 %    =========================================================================
 %     Properties    Values
 %    -------------------------------------------------------------------------
-%     'strict'      intervals with common bounds are as intersecting ('on')
-%                   or disjoint ('off') (default = 'off')
+%     'strict'       intervals with common bounds are as intersecting ('on')
+%                    or disjoint ('off') (default = 'off')
+%     'partial'      intervals with partial intersection are not excluded ('off'), 
+%                    excluded ('on'), excluded only if they overlap by their right 
+%                    side ('right'), or left part ('left') (default = 'on')
 %    =========================================================================
 %
 %  OUTPUT
@@ -31,7 +34,7 @@ function [intervals,indices] = ExcludeIntervals(intervals1,intervals2,varargin)
 %    FindInInterval, CountInIntervals, PlotIntervals.
 
 
-% Copyright (C) 2004-2011 by Michaël Zugaro
+% Copyright (C) 2004-2011 by Michaël Zugaro & (C) 2024 by Théo Mathevet
 %
 % This program is free software; you can redistribute it and/or modify
 % it under the terms of the GNU General Public License as published by
@@ -40,7 +43,7 @@ function [intervals,indices] = ExcludeIntervals(intervals1,intervals2,varargin)
 
 % Default values
 strict = 'off';
-
+partial = 'on';
 if nargin < 2,
   error('Incorrect number of parameters (type ''help <a href="matlab:help ExcludeIntervals">ExcludeIntervals</a>'' for details).');
 end
@@ -59,6 +62,11 @@ for i = 1:2:length(varargin),
 			strict = lower(varargin{i+1});
 			if ~isastring(strict,'on','off'),
 				error('Incorrect value for property ''strict'' (type ''help <a href="matlab:help ExcludeIntervals">ExcludeIntervals</a>'' for details).');
+            end
+        case 'excludepartial',
+			partial = lower(varargin{i+1});
+			if ~isastring(partial,'on','off','right','left'),
+				error('Incorrect value for property ''strict'' (type ''help <a href="matlab:help ExcludeIntervals">ExcludeIntervals</a>'' for details).');
 			end
 		otherwise,
 			error(['Unknown property ''' num2str(varargin{i}) ''' (type ''help <a href="matlab:help ExcludeIntervals">ExcludeIntervals</a>'' for details).']);
@@ -67,12 +75,22 @@ end
 
 intervals = [];
 indices = [];
-if strcmp(strict,'on'),
+if strcmp(strict,'off'),
 	for i = 1:size(intervals1,1),
 		% List all intervals (to exclude) that overlap with the current interval
-		intersect = (intervals1(i,1) <= intervals2(:,1) & intervals1(i,2) > intervals2(:,1)) ...
-			| (intervals1(i,1) >= intervals2(:,1) & intervals1(i,2) <= intervals2(:,2)) ...
-			| (intervals1(i,1) < intervals2(:,2) & intervals1(i,2) >= intervals2(:,2));
+        if strcmp(partial,'on'),
+            intersect = (intervals1(i,1) <= intervals2(:,1) & intervals1(i,2) > intervals2(:,1)) ...
+                | (intervals1(i,1) >= intervals2(:,1) & intervals1(i,2) <= intervals2(:,2)) ...
+                | (intervals1(i,1) < intervals2(:,2) & intervals1(i,2) >= intervals2(:,2));
+        elseif strcmpi(partial,'right'),
+            intersect = (intervals1(i,1) <= intervals2(:,1) & intervals1(i,2) > intervals2(:,1)) ...
+                | (intervals1(i,1) >= intervals2(:,1) & intervals1(i,2) <= intervals2(:,2));
+        elseif strcmpi(partial,'left'),
+            intersect = (intervals1(i,1) >= intervals2(:,1) & intervals1(i,2) <= intervals2(:,2)) ...
+                | (intervals1(i,1) < intervals2(:,2) & intervals1(i,2) >= intervals2(:,2));
+        else
+            intersect = (intervals1(i,1) >= intervals2(:,1) & intervals1(i,2) <= intervals2(:,2));
+        end
 		% Include current interval?
 		if sum(intersect) == 0,
 			intervals = [intervals;intervals1(i,:)];
@@ -82,9 +100,19 @@ if strcmp(strict,'on'),
 else
 	for i = 1:size(intervals1,1),
 		% List all intervals (to exclude) that overlap with the current interval
-		intersect = (intervals1(i,1) <= intervals2(:,1) & intervals1(i,2) >= intervals2(:,1)) ...
-			| (intervals1(i,1) >= intervals2(:,1) & intervals1(i,2) <= intervals2(:,2)) ...
-			| (intervals1(i,1) <= intervals2(:,2) & intervals1(i,2) >= intervals2(:,2));
+        if strcmp(partial,'on'),
+            intersect = (intervals1(i,1) <= intervals2(:,1) & intervals1(i,2) >= intervals2(:,1)) ...
+                | (intervals1(i,1) >= intervals2(:,1) & intervals1(i,2) <= intervals2(:,2)) ...
+                | (intervals1(i,1) <= intervals2(:,2) & intervals1(i,2) >= intervals2(:,2));
+        elseif strcmpi(partial,'right'),
+            intersect = (intervals1(i,1) <= intervals2(:,1) & intervals1(i,2) >= intervals2(:,1)) ...
+                | (intervals1(i,1) >= intervals2(:,1) & intervals1(i,2) <= intervals2(:,2));
+        elseif strcmpi(partial,'left'),
+            intersect = (intervals1(i,1) >= intervals2(:,1) & intervals1(i,2) <= intervals2(:,2)) ...
+                | (intervals1(i,1) <= intervals2(:,2) & intervals1(i,2) >= intervals2(:,2));
+        else
+            intersect = (intervals1(i,1) >= intervals2(:,1) & intervals1(i,2) <= intervals2(:,2));
+        end
 		% Include current interval?
 		if sum(intersect) == 0,
 			intervals = [intervals;intervals1(i,:)];
