@@ -66,7 +66,7 @@ for i = 1:2:length(varargin),
         case 'excludepartial',
 			partial = lower(varargin{i+1});
 			if ~isastring(partial,'on','off','right','left'),
-				error('Incorrect value for property ''strict'' (type ''help <a href="matlab:help ExcludeIntervals">ExcludeIntervals</a>'' for details).');
+				error('Incorrect value for property ''partial'' (type ''help <a href="matlab:help ExcludeIntervals">ExcludeIntervals</a>'' for details).');
 			end
 		otherwise,
 			error(['Unknown property ''' num2str(varargin{i}) ''' (type ''help <a href="matlab:help ExcludeIntervals">ExcludeIntervals</a>'' for details).']);
