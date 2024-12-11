@@ -182,7 +182,7 @@ if ~isempty(y) && length(y) ~= 1,
 end
 
 % Color map and bar
-colormap(Bright(100,'hgamma',hgamma,'type',type));
+colormap(gca, Bright(100,'hgamma',hgamma,'type',type));
 if strcmp(drawBar,'on'),
 	b = colorbar('vert');
 	set(b,'xtick',[],'tickdir','out','box','off','ycolor','k');
