@@ -1,4 +1,4 @@
-function [errors,average,estimations,actual,headingDegrees] = ReconstructPosition2Dto1D(positions,spikes,windows,varargin)
+function [errors,average,estimations,actual,headingAngle] = ReconstructPosition2Dto1D(positions,spikes,windows,varargin)
 
 % Bayesian reconstruction of positions from spike trains.
 %
@@ -261,11 +261,6 @@ PnxPx = bsxfun(@times,Pnx,Px);
 Pn = nansum(PnxPx);
 estimations(:,~uniform) = bsxfun(@rdivide,PnxPx,Pn);
 
-% reshape to original (non-flattened) spatial dimensions
-if nDimensions>1
-    estimations = reshape(estimations,[nBinsPerDim size(estimations,2)]);
-end
-
 % make sure no nans remain
 if any(isnan(estimations(:)))
     nans = double(isnan(estimations)); nans(nans==0) = nan;
@@ -274,6 +269,11 @@ if any(isnan(estimations(:)))
     remainingProbability(abs(remainingProbability)<0.0000000001) = 0;
     nans = remainingProbability./nansum(nans).*nans;
     estimations(isnan(estimations)) = nans(isnan(estimations));
+end
+
+% reshape to original (non-flattened) spatial dimensions
+if nDimensions>1
+    estimations = reshape(estimations,[nBinsPerDim size(estimations,2)]);
 end
 
 % Estimation error
@@ -305,17 +305,13 @@ end
 future = interp1(positions(:,1),positions(:,2:3),windowCenters+0.1); %position 100 ms from now, used to estimate heading
 past = interp1(positions(:,1),positions(:,2:3),windowCenters-0.1); %position 100 ms from now, used to estimate heading
 d = future - past;
-headingDegrees = atan2(d(:,1),d(:,2))/pi*180;
-bad = isnan(headingDegrees) | any(isnan(actual),2);
+headingAngle = atan2(d(:,1),d(:,2));
+bad = isnan(headingAngle) | any(isnan(actual),2);
 errors = nan(size(estimations,2:3));
 for i=1:size(actual,1)
     if bad(i), continue; end
-    try
-        q = imtranslate(estimations(:,:,i),ceil(-actual(i,[2 1]).*nBinsPerDim + nBinsPerDim/2)); q(q==0) = nan;
-    catch
-        keyboard
-    end
-    q = imrotate(q,headingDegrees(i),'nearest','crop'); q(q==0) = nan;
+    q = imtranslate(estimations(:,:,i),ceil(-actual(i,[2 1]).*nBinsPerDim + nBinsPerDim/2)); q(q==0) = nan;
+    q = imrotate(q,headingDegrees(i)/pi*180,'nearest','crop'); q(q==0) = nan;
     q(isnan(q(:))) = (1-nansum(q(:)))./sum(isnan(q(:)));
     errors(:,i) = nansum(q);
 end
