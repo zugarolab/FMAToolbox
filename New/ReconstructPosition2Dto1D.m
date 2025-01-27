@@ -40,6 +40,10 @@ function [errors,average,estimations,actual,headingAngle] = ReconstructPosition2
 %                   error (for example, phases for each window, to compute the
 %                   average error by phase). This should be a vector with one
 %                   element (integer) per window (default - no error computed).
+%     'minSpikes'   the minumum number of training spikes for each unit.
+%                   Units with fewer spikes in the training set than
+%                   "minSpikes" will not be used to compute firing maps or
+%                   estimate positions (default = 100). 
 %    =========================================================================
 %
 %   OUTPUT
@@ -49,7 +53,7 @@ function [errors,average,estimations,actual,headingAngle] = ReconstructPosition2
 %     errors        estimation error across time or phase windows
 %     average       average estimation error in each phase window
 %
-% Copyright (C) 2023 by Ralitsa Todorova
+% Copyright (C) 2023-2025 by Ralitsa Todorova and Théo Mathevet
 %
 % This program is free software; you can redistribute it and/or modify
 % it under the terms of the GNU General Public License as published by
@@ -64,6 +68,7 @@ nDimensions = 1;
 intervalID = [];
 prior = 'off';
 interpolate = 'on';
+minSpikes = 100;
 
 % If spikes are provided in cell format, transform them to matrix
 if isstruct(spikes) && isfield(spikes,'times')
@@ -121,6 +126,11 @@ for i = 1:2:length(varargin)
             if ~isivector(intervalID,'>0')
                 builtin('error',['Incorrect value for property ''' varargin{i} ''' (type ''help <a href="matlab:help ReconstructPosition">ReconstructPosition</a>'' for details).']);
             end
+        case 'minspikes'
+            minSpikes = varargin{i+1};
+            if ~isiscalar(minSpikes)
+                builtin('error',['Incorrect value for property ''' varargin{i} ''' (type ''help <a href="matlab:help ReconstructPosition">ReconstructPosition</a>'' for details).']);
+            end
         case 'type'
             type = lower(varargin{i+1});
             if (nDimensions == 1 && isastring(type(1),'c','l'))
@@ -167,9 +177,26 @@ else
     id = spikes(:,2);
     nUnits = max(id);
 end
+
 %% TRAINING
 trainingPositions = Restrict(positions,training,'shift','on');
 trainingSpikes = Restrict(spikes,training,'shift','on');
+
+% Apply minSpikes threshold to ignore units with very few spikes (which
+% would lead to noisy estimates of lambda)
+nSpikes = Accumulate(trainingSpikes(:,2));
+tooFew = nSpikes<minSpikes;
+if any(tooFew)
+    % remove the units from the data
+    okIDs = cumsum(~tooFew);
+    okIDs(tooFew) = 0;
+    % skip empty IDs:
+    trainingSpikes(:,2) = okIDs(trainingSpikes(:,2));
+    spikes(:,2) = okIDs(spikes(:,2));
+    trainingSpikes(trainingSpikes(:,2)==0,:) = [];
+    spikes(spikes(:,2)==0,:) = [];
+end
+   
 
 % Compute average firing probability lambda for each unit (i.e. firing maps)
 lambda = nan(prod(nBinsPerDim),nUnits);
