@@ -195,6 +195,8 @@ if any(tooFew)
     spikes(:,2) = okIDs(spikes(:,2));
     trainingSpikes(trainingSpikes(:,2)==0,:) = [];
     spikes(spikes(:,2)==0,:) = [];
+    id = spikes(:,2);
+    nUnits = max(id);
 end
    
 
@@ -238,6 +240,7 @@ end
 silent = sum(lambda)==0;
 spikecount(silent,:) = [];
 lambda(:,silent) = [];
+lambda = lambda+eps;
 
 % preset estimations to be uniform
 estimations = ones(nBins,nWindows)/nBins;
@@ -335,10 +338,11 @@ d = future - past;
 headingAngle = atan2(d(:,1),d(:,2));
 bad = isnan(headingAngle) | any(isnan(actual),2);
 errors = nan(size(estimations,2:3));
+
 for i=1:size(actual,1)
     if bad(i), continue; end
-    q = imtranslate(estimations(:,:,i),ceil(-actual(i,[2 1]).*nBinsPerDim + nBinsPerDim/2)); q(q==0) = nan;
-    q = imrotate(q,headingDegrees(i)/pi*180,'nearest','crop'); q(q==0) = nan;
+    q = translateMatrix(estimations(:,:,i),ceil(-actual(i,[2 1]).*nBinsPerDim + nBinsPerDim/2)); q(q==0) = nan;
+    q = rotateMatrix(q,headingAngle(i)); q(q==0) = nan;
     q(isnan(q(:))) = (1-nansum(q(:)))./sum(isnan(q(:)));
     errors(:,i) = nansum(q);
 end
@@ -409,4 +413,80 @@ indices(indices>length(i) | query>max(u)) = length(i);
 
 indices = i(indices);
 values = reference(indices);
+end
+
+function rotatedMatrix = rotateMatrix(matrix,angle,varargin)
+% Rotates a matrix by angle degrees in a counterclockwise direction around its center point. To rotate the image clockwise, specify a negative value for angle.
+p = inputParser;
+addParameter(p,'units','radians',@(x)ismember(x,{'radians','degrees'}))
+parse(p,varargin{:})
+units     = p.Results.units;    
+%
+if isequal(units,'degrees'); angle = deg2rad(angle); end                    % Convert angle to radians if needed
+[rows, cols] = size(matrix);                                                % Get the size of the input image
+center = [rows, cols] / 2 +0.5;                                                  % Image center for rotation
+
+if rem(angle,pi/2) == 0                                                                     % Easy cases (Rotation is a multiple of pi/2)
+    nbQuarters=mod(floor(angle/(pi/2)), 4);                                                 % Which case ? 
+    switch nbQuarters
+        case 0                                                                                  % No Rotation
+            rotatedMatrix=matrix;                                                                   % Then no rotation
+        case {1,3}                                                                             	% 1 quarter or -1 quarter (3 quarters)
+            starts=(max([rows, cols])==[rows, cols])*abs(diff(floor([rows, cols]/2)));              % In order to preserve shape, find rows/cols offset (0 for the smaller dim, half of the difference between dims for the bigger)
+            nbPoints = 1:min([rows, cols]);                                                         % And how many rows/cols to keep (min(dims))
+            rowsKept=starts(1)+nbPoints;                                                            % Idx of the rows to keep
+            colsKept=starts(2)+nbPoints;                                                            % Idx of the cols to keep
+            rotatedMatrix=nan([rows, cols]);                                                        % Prefill with NaNs
+            rotatedMatrix(rowsKept,colsKept)=rot90(matrix(rowsKept,colsKept),nbQuarters);           % Assign Rotated submatrix     
+        case 2                                                                                  % 1 half
+            rotatedMatrix = rot90(matrix, 2);                                                       % Simple rotation by 180° 
+    end
+else
+    [x, y] = meshgrid(1:cols, 1:rows);                                          % Create coordinate grid for the original image
+    xCentered = x - center(2);                                                  % Translate coordinates to center the image
+    yCentered = y - center(1);
+
+    rotationmatrix = [cos(angle), -sin(angle); sin(angle), cos(angle)];         % Create rotation matrix
+    rotatedCoords = rotationmatrix * [xCentered(:)'; yCentered(:)'];            % Rotate coordinates 
+
+    xRot = reshape(rotatedCoords(1, :) + center(2), size(x));                   % Translate coordinates back to the original matrix size
+    yRot = reshape(rotatedCoords(2, :) + center(1), size(y));
+
+    rotatedMatrix = nan(size(matrix));                                          % Pre-fill with NaNs
+    xNearest = round(xRot);                                                     % Find nearest valid index (% Nearest-neighbor interpolation)
+    yNearest = round(yRot);
+    validMask = xNearest >= 1 & xNearest <= cols & yNearest >= 1 & yNearest <= rows; % Create Mask within bounds of original matrix ('crop')
+
+
+    rotatedIndices = sub2ind(size(matrix), yNearest(validMask), xNearest(validMask));                 % Map original values to the rotated image
+    rotatedMatrix(validMask) = matrix(rotatedIndices);                          % Create rotated matrix
+end
+end
+
+function translatedMatrix = translateMatrix(matrix, translation)
+    % customImtranslate translates an image A by the specified translation.
+    %
+    % INPUT:
+    %   A           - Input 2D array (image).
+    %   translation - 1x2 vector [tx, ty] specifying the translation:
+    %                 tx: translation along x-axis (columns).
+    %                 ty: translation along y-axis (rows).
+    %
+    % OUTPUT:
+    %   translatedMatrix - Translated 2D array.
+    
+    
+    [rows, cols] = size(matrix); % Dimensions of the input image
+    tx = translation(1);    % Translation along x-axis
+    ty = translation(2);    % Translation along y-axis
+
+    % Create a grid for the input array
+    [X, Y] = meshgrid(1:cols, 1:rows);
+
+    % Translate the grid
+    Xq = X - tx;
+    Yq = Y - ty;
+
+    % Interpolate the image using linear interpolation
+    translatedMatrix = interp2(X, Y, matrix, Xq, Yq, 'linear', 0);
 end
