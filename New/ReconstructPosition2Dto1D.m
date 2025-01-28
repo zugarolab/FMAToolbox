@@ -27,15 +27,15 @@ function [errors,average,estimations,actual,headingAngle] = ReconstructPosition2
 %                   - for 1D data, only one letter is used (default 'll')
 %     'nBins'       firing curve or map resolution (default = 200 for 1D and
 %                   [200 200] for 2D data)
-%     'prior'     taking the map occupancy into account or not (default = 'off')
-%		This is what makes the reconstruction Bayesien, but if animal
-%		occupancy is very skewed, the recustruction would be good even
-%		without informative spikes, which is why the default is off.
-%     'interpolate'     When estimating errors, compute the actual position by
-%		interpolating the positions data to the decoding window
-%		(default = 'on'). If positions data is not continuous (i.e.
-%		there are discontinuities), set to 'off' to take the position
-%		value closest in time without interpolating.
+%     'prior'       taking the map occupancy into account or not (default = 'off')
+%                   This is what makes the reconstruction Bayesien, but if animal
+%                   occupancy is very skewed, the recustruction would be good even
+%                   without informative spikes, which is why the default is off.
+%     'interpolate' When estimating errors, compute the actual position by
+%                   interpolating the positions data to the decoding window
+%                   (default = 'on'). If positions data is not continuous (i.e.
+%                   there are discontinuities), set to 'off' to take the position
+%                   value closest in time without interpolating.
 %     'id'          bin number for each window, used to compute the avarage
 %                   error (for example, phases for each window, to compute the
 %                   average error by phase). This should be a vector with one
@@ -186,19 +186,6 @@ trainingSpikes = Restrict(spikes,training,'shift','on');
 % would lead to noisy estimates of lambda)
 nSpikes = Accumulate(trainingSpikes(:,2));
 tooFew = nSpikes<minSpikes;
-if any(tooFew)
-    % remove the units from the data
-    okIDs = cumsum(~tooFew);
-    okIDs(tooFew) = 0;
-    % skip empty IDs:
-    trainingSpikes(:,2) = okIDs(trainingSpikes(:,2));
-    spikes(:,2) = okIDs(spikes(:,2));
-    trainingSpikes(trainingSpikes(:,2)==0,:) = [];
-    spikes(spikes(:,2)==0,:) = [];
-    id = spikes(:,2);
-    nUnits = max(id);
-end
-   
 
 % Compute average firing probability lambda for each unit (i.e. firing maps)
 lambda = nan(prod(nBinsPerDim),nUnits);
@@ -235,11 +222,17 @@ for i = 1:nUnits
     spikecount(i,:) = CountInIntervals(spikes(id==i),windows);
 end
 
-% In rare cases there may be a neuron that didn't fire at all during training.
+% In rare cases there may be a neuron that didn't fire at all / enough during training.
 % This results in multiplying/dividing by zero, so they should be ignored
-silent = sum(lambda)==0;
+silent = sum(lambda)==0 | tooFew; 
 spikecount(silent,:) = [];
 lambda(:,silent) = [];
+
+% Sometimes a unit has such a clear place field that the probability of it
+% firing farther away is estimated to be zero. This leads to errors because
+% the loglambda would be -Inf, which would be estimated to be NaN even when
+% the neuron did not fire (-Inf*0 = NaN). To avoid this error, a minimal
+% probability is added to all place maps. 
 lambda = lambda+eps;
 
 % preset estimations to be uniform
@@ -347,7 +340,6 @@ for i=1:size(actual,1)
     errors(:,i) = nansum(q);
 end
 
-
 if nargout<2
     return
 end
@@ -357,6 +349,7 @@ if isempty(intervalID)
     warning('No id-s provided. Average error computed for all bins');
 end
 
+average = cell(max(intervalID),1);
 for i=1:max(intervalID)
     average{i,1} = nanmean(errors(:,intervalID==i),2);
 end
@@ -379,28 +372,55 @@ end
 
 function [indices,values] = FindClosest(reference, query, mode)
 
-% This function looks up a query vector in a reference vector, and for each
-% value in the query vector, returns the index of the closest value in the
-% reference vector. The equivalent non-optimised code is trivial:
+%FindClosest - field the indices of a reference vector closest to a query vector
+% Look up a query vector in a reference vector, and for each value in 
+% the query vector, return the index of the closest value in the
+% reference vector. 
+%
+% USAGE
+%
+%    [indices,values] = FindClosest(reference, query, mode)
+%
+%    reference      reference signal which will be used as the table look-up
+%    query          query signal. For each value of this signal, the function
+%                   will look for the closest value in the reference signal
+%    mode           a string ('either','higher', or 'lower') indicating 
+%                   whether the function should find the closest value in
+%                   reference higher than the query ('higher) or lower than
+%                   the query ('lower') or the closest value regardless of
+%                   the direction of the difference (default = 'either')
+%
+%
+% EXAMPLE
+% indices = FindClosests(spikes(:,1),deltas(:,2)) will return the indices of spikes closest to the delta wave peak
+% d = deltas(:,2) - spikes(indices) will contain all the minimal distances between delta wave peaks and spikes (one distance per each delta wave)
+%
+% NOTE 
+% This is an optimized implementation of computing the following trivial code:
 % for i=1:length(reference), indices(i,1) = find(abs(query-reference(i)) == min(abs(query-reference(i))), 1, 'first'); end
-% EXAMPLE 1 (reasoning):
-% FindClosest([0.5; 0.2],[0.3 0.45 0.66]) returns [2;1]
-% as the closest value to 0.5 was 0.45 (index 2), and to 0.2 was 0.3 (index 1)
-% EXAMPLE 2 (usage):
-% indices = FindClosests(spikes1,spikes2) will return the indices of spikes2 closest to spikes1
-% spikes1 - spikes2(indices) will contain all the minimal distances between spikes1 and spikes2 (one distance per each spike in spike1)
+% values = reference(indices);
+%
+% Copyright (C) 2016-2019 by Ralitsa Todorova
+%
+% This program is free software; you can redistribute it and/or modify
+% it under the terms of the GNU General Public License as published by
+% the Free Software Foundation; either version 3 of the License, or
+% (at your option) any later version.
 
 if ~exist('mode','var'),mode = 'either'; end
-
 if isempty(reference) || isempty(query), indices = []; values = []; return; end
 if length(reference)==1,indices = 1; values=reference; return; end
+
+nans = isnan(reference);
+nonnans = find(~nans);
+reference(nans) = [];
 
 % Make sure values to be matched are unique
 [u,i] = unique(reference);
 % Find closest index
-if strcmp(mode,'higher'),
+if strcmp(mode,'higher')
     indices = ceil(interp1(u,(1:length(u))',query));
-elseif strcmp(mode,'lower'),
+elseif strcmp(mode,'lower')
     indices = floor(interp1(u,(1:length(u))',query));
 else
     indices = round(interp1(u,(1:length(u))',query));
@@ -413,80 +433,105 @@ indices(indices>length(i) | query>max(u)) = length(i);
 
 indices = i(indices);
 values = reference(indices);
+indices = nonnans(indices);
 end
 
 function rotatedMatrix = rotateMatrix(matrix,angle,varargin)
-% Rotates a matrix by angle degrees in a counterclockwise direction around its center point. To rotate the image clockwise, specify a negative value for angle.
+
+% Rotates a matrix by angle degrees in a counterclockwise direction around 
+% its center point. To rotate the image clockwise, specify a negative value 
+% for angle.
+%
+% Copyright (C) 2025 by Théo Mathevet
+%
+% This program is free software; you can redistribute it and/or modify
+% it under the terms of the GNU General Public License as published by
+% the Free Software Foundation; either version 3 of the License, or
+% (at your option) any later version..
+
+% Image center for rotation
 p = inputParser;
 addParameter(p,'units','radians',@(x)ismember(x,{'radians','degrees'}))
 parse(p,varargin{:})
 units     = p.Results.units;    
-%
-if isequal(units,'degrees'); angle = deg2rad(angle); end                    % Convert angle to radians if needed
-[rows, cols] = size(matrix);                                                % Get the size of the input image
-center = [rows, cols] / 2 +0.5;                                                  % Image center for rotation
 
-if rem(angle,pi/2) == 0                                                                     % Easy cases (Rotation is a multiple of pi/2)
-    nbQuarters=mod(floor(angle/(pi/2)), 4);                                                 % Which case ? 
+if isequal(units,'degrees'); angle = deg2rad(angle); end % Convert angle to radians if needed
+[rows, cols] = size(matrix); % Get the size of the input image
+center = [rows, cols] / 2 +0.5;    
+
+if rem(angle,pi/2) == 0 % easy cases (when the rotation is a multiple of pi/2)
+    nbQuarters=mod(floor(angle/(pi/2)), 4); % Which case?
     switch nbQuarters
-        case 0                                                                                  % No Rotation
-            rotatedMatrix=matrix;                                                                   % Then no rotation
-        case {1,3}                                                                             	% 1 quarter or -1 quarter (3 quarters)
-            starts=(max([rows, cols])==[rows, cols])*abs(diff(floor([rows, cols]/2)));              % In order to preserve shape, find rows/cols offset (0 for the smaller dim, half of the difference between dims for the bigger)
-            nbPoints = 1:min([rows, cols]);                                                         % And how many rows/cols to keep (min(dims))
-            rowsKept=starts(1)+nbPoints;                                                            % Idx of the rows to keep
-            colsKept=starts(2)+nbPoints;                                                            % Idx of the cols to keep
-            rotatedMatrix=nan([rows, cols]);                                                        % Prefill with NaNs
-            rotatedMatrix(rowsKept,colsKept)=rot90(matrix(rowsKept,colsKept),nbQuarters);           % Assign Rotated submatrix     
-        case 2                                                                                  % 1 half
-            rotatedMatrix = rot90(matrix, 2);                                                       % Simple rotation by 180° 
+        case 0 % No Rotation
+            rotatedMatrix=matrix; % then no rotation
+        case {1,3} % 1 quarter or -1 quarter (3 quarters)
+            % In order to preserve shape, find rows/cols offset (0 for the smaller dim, half of the difference between dims for the bigger)
+            starts=(max([rows, cols])==[rows, cols])*abs(diff(floor([rows, cols]/2)));
+            nbPoints = 1:min([rows, cols]); % how many rows/cols to keep (min(dims))
+            rowsKept=starts(1)+nbPoints; % idx of the rows to keep
+            colsKept=starts(2)+nbPoints; % idx of the cols to keep
+            rotatedMatrix=nan([rows, cols]); % pre-allocate a matrix with NaNs
+            rotatedMatrix(rowsKept,colsKept)=rot90(matrix(rowsKept,colsKept),nbQuarters); % assign rotated submatrix
+        case 2 % 1 half
+            rotatedMatrix = rot90(matrix, 2); % Simple rotation by 180°
     end
-else
-    [x, y] = meshgrid(1:cols, 1:rows);                                          % Create coordinate grid for the original image
-    xCentered = x - center(2);                                                  % Translate coordinates to center the image
+else % general case
+    % Create coordinate grid for the original image
+    [x, y] = meshgrid(1:cols, 1:rows); 
+    % Translate coordinates to center the image
+    xCentered = x - center(2); 
     yCentered = y - center(1);
 
-    rotationmatrix = [cos(angle), -sin(angle); sin(angle), cos(angle)];         % Create rotation matrix
-    rotatedCoords = rotationmatrix * [xCentered(:)'; yCentered(:)'];            % Rotate coordinates 
+    rotationmatrix = [cos(angle), -sin(angle); sin(angle), cos(angle)]; % Create rotation matrix
+    rotatedCoords = rotationmatrix * [xCentered(:)'; yCentered(:)']; % Rotate coordinates 
 
-    xRot = reshape(rotatedCoords(1, :) + center(2), size(x));                   % Translate coordinates back to the original matrix size
+    % Translate coordinates back to the original matrix size
+    xRot = reshape(rotatedCoords(1, :) + center(2), size(x)); 
     yRot = reshape(rotatedCoords(2, :) + center(1), size(y));
 
-    rotatedMatrix = nan(size(matrix));                                          % Pre-fill with NaNs
-    xNearest = round(xRot);                                                     % Find nearest valid index (% Nearest-neighbor interpolation)
+    rotatedMatrix = nan(size(matrix)); % pre-allocate a matrix with NaNs
+    % Find nearest valid index (% Nearest-neighbor interpolation)
+    xNearest = round(xRot); 
     yNearest = round(yRot);
-    validMask = xNearest >= 1 & xNearest <= cols & yNearest >= 1 & yNearest <= rows; % Create Mask within bounds of original matrix ('crop')
+    % Create a mask within bounds of original matrix ('crop')
+    validMask = xNearest >= 1 & xNearest <= cols & yNearest >= 1 & yNearest <= rows; 
 
-
-    rotatedIndices = sub2ind(size(matrix), yNearest(validMask), xNearest(validMask));                 % Map original values to the rotated image
-    rotatedMatrix(validMask) = matrix(rotatedIndices);                          % Create rotated matrix
+    % Map the original values to the rotated image
+    rotatedIndices = sub2ind(size(matrix), yNearest(validMask), xNearest(validMask));                
+    rotatedMatrix(validMask) = matrix(rotatedIndices); % Create the rotated matrix
 end
 end
 
 function translatedMatrix = translateMatrix(matrix, translation)
-    % customImtranslate translates an image A by the specified translation.
-    %
-    % INPUT:
-    %   A           - Input 2D array (image).
-    %   translation - 1x2 vector [tx, ty] specifying the translation:
-    %                 tx: translation along x-axis (columns).
-    %                 ty: translation along y-axis (rows).
-    %
-    % OUTPUT:
-    %   translatedMatrix - Translated 2D array.
-    
-    
-    [rows, cols] = size(matrix); % Dimensions of the input image
-    tx = translation(1);    % Translation along x-axis
-    ty = translation(2);    % Translation along y-axis
+% customImtranslate translates an image A by the specified translation.
+%
+% INPUT:
+%   A           - Input 2D array (image).
+%   translation - 1x2 vector [tx, ty] specifying the translation:
+%                 tx: translation along x-axis (columns).
+%                 ty: translation along y-axis (rows).
+%
+% OUTPUT:
+%   translatedMatrix - Translated 2D array.
+%
+% Copyright (C) 2025 by Théo Mathevet
+%
+% This program is free software; you can redistribute it and/or modify
+% it under the terms of the GNU General Public License as published by
+% the Free Software Foundation; either version 3 of the License, or
+% (at your option) any later version..
 
-    % Create a grid for the input array
-    [X, Y] = meshgrid(1:cols, 1:rows);
+[rows, cols] = size(matrix); % dimensions of the input image
+tx = translation(1); % translation along x-axis
+ty = translation(2); % translation along y-axis
 
-    % Translate the grid
-    Xq = X - tx;
-    Yq = Y - ty;
+% Create a grid for the input array
+[X, Y] = meshgrid(1:cols, 1:rows);
 
-    % Interpolate the image using linear interpolation
-    translatedMatrix = interp2(X, Y, matrix, Xq, Yq, 'linear', 0);
+% Translate the grid
+Xq = X - tx;
+Yq = Y - ty;
+
+% Interpolate the image using linear interpolation
+translatedMatrix = interp2(X, Y, matrix, Xq, Yq, 'linear', 0);
 end
