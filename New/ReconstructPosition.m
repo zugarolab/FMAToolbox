@@ -28,15 +28,15 @@ function [estimations,actual,errors,average] = ReconstructPosition(positions,spi
 %                   - for 1D data, only one letter is used (default 'll')
 %     'nBins'       firing curve or map resolution (default = 200 for 1D and
 %                   [200 200] for 2D data)
-%     'prior'     taking the map occupancy into account or not (default = 'off')
-%		This is what makes the reconstruction Bayesien, but if animal
-%		occupancy is very skewed, the recustruction would be good even
-%		without informative spikes, which is why the default is off.
-%     'interpolate'     When estimating errors, compute the actual position by
-%		interpolating the positions data to the decoding window
-%		(default = 'on'). If positions data is not continuous (i.e.
-%		there are discontinuities), set to 'off' to take the position
-%		value closest in time without interpolating.
+%     'prior'       taking the map occupancy into account or not (default = 'off')
+%                   This is what makes the reconstruction Bayesien, but if animal
+%                   occupancy is very skewed, the recustruction would be good even
+%                   without informative spikes, which is why the default is off.
+%     'interpolate' When estimating errors, compute the actual position by
+%                   interpolating the positions data to the decoding window
+%                   (default = 'on'). If positions data is not continuous (i.e.
+%                   there are discontinuities), set to 'off' to take the position
+%                   value closest in time without interpolating.
 %     'id'          bin number for each window, used to compute the avarage
 %                   error (for example, phases for each window, to compute the
 %                   average error by phase). This should be a vector with one
@@ -51,7 +51,7 @@ function [estimations,actual,errors,average] = ReconstructPosition(positions,spi
 %     average       average estimation error in each phase window
 %
 % Copyright (C) 2012-2015 by Michaël Zugaro, (C) 2012 by Karim El Kanbi (initial, non-vectorized implementation),
-% (C) 2015-2021 by Ralitsa Todorova (log-exp fix, flattening dimensions, options)
+% (C) 2015-2025 by Ralitsa Todorova (log-exp fix, flattening dimensions, options)
 %
 % This program is free software; you can redistribute it and/or modify
 % it under the terms of the GNU General Public License as published by
@@ -66,6 +66,7 @@ nDimensions = 1;
 intervalID = [];
 prior = 'on';
 interpolate = 'on';
+minSpikes = 100;
 
 % If spikes are provided in cell format, transform them to matrix
 if isstruct(spikes) && isfield(spikes,'times')
@@ -123,6 +124,11 @@ for i = 1:2:length(varargin)
       if ~isivector(intervalID,'>0')
           builtin('error',['Incorrect value for property ''' varargin{i} ''' (type ''help <a href="matlab:help ReconstructPosition">ReconstructPosition</a>'' for details).']);
       end
+        case 'minspikes'
+            minSpikes = varargin{i+1};
+            if ~isiscalar(minSpikes)
+                builtin('error',['Incorrect value for property ''' varargin{i} ''' (type ''help <a href="matlab:help ReconstructPosition">ReconstructPosition</a>'' for details).']);
+            end
         case 'type'
             type = lower(varargin{i+1});
             if (nDimensions == 1 && isastring(type(1),'c','l'))
@@ -174,6 +180,11 @@ end
 trainingPositions = Restrict(positions,training,'shift','on');
 trainingSpikes = Restrict(spikes,training,'shift','on');
 
+% Apply minSpikes threshold to ignore units with very few spikes (which
+% would lead to noisy estimates of lambda)
+nSpikes = Accumulate(trainingSpikes(:,2));
+tooFew = nSpikes<minSpikes;
+
 % Compute average firing probability lambda for each unit (i.e. firing maps)
 lambda = nan(prod(nBins),nUnits);
 for i = 1:nUnits
@@ -212,9 +223,16 @@ end
 
 % In rare cases there may be a neuron that didn't fire at all during training.
 % This results in multiplying/dividing by zero, so they should be ignored
-silent = sum(lambda)==0;
+silent = sum(lambda)==0 | tooFew; 
 spikecount(silent,:) = [];
 lambda(:,silent) = [];
+
+% Sometimes a unit has such a clear place field that the probability of it
+% firing farther away is estimated to be zero. This leads to errors because
+% the loglambda would be -Inf, which would be estimated to be NaN even when
+% the neuron did not fire (-Inf*0 = NaN). To avoid this error, a minimal
+% probability is added to all place maps. 
+lambda = lambda+eps;
 
 % preset estimations to be uniform
 estimations = ones(nBins,nWindows)/nBins;
@@ -352,6 +370,7 @@ if isempty(intervalID)
     warning('No id-s provided. Average error computed for all bins');
 end
 
+average = cell(max(intervalID),1);
 for i=1:max(intervalID)
     average{i,1} = eval(['nanmean(errors(' repmat(':,',1,nDimensions) 'intervalID==i),nDimensions+1)']);
 end
@@ -402,7 +421,7 @@ function [indices,values] = FindClosest(reference, query, mode)
 % for i=1:length(reference), indices(i,1) = find(abs(query-reference(i)) == min(abs(query-reference(i))), 1, 'first'); end
 % values = reference(indices);
 %
-% (C) 2019 by Ralitsa Todorova
+% Copyright (C) 2016-2019 by Ralitsa Todorova
 %
 % This program is free software; you can redistribute it and/or modify
 % it under the terms of the GNU General Public License as published by
@@ -420,9 +439,9 @@ reference(nans) = [];
 % Make sure values to be matched are unique
 [u,i] = unique(reference);
 % Find closest index
-if strcmp(mode,'higher'),
+if strcmp(mode,'higher')
     indices = ceil(interp1(u,(1:length(u))',query));
-elseif strcmp(mode,'lower'),
+elseif strcmp(mode,'lower')
     indices = floor(interp1(u,(1:length(u))',query));
 else
     indices = round(interp1(u,(1:length(u))',query));
