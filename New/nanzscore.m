@@ -16,8 +16,8 @@ end
 
 x(abs(x)==Inf)=nan;
 % Compute X's mean and sd, and standardize it
-mu = nanmean(x,dim);
-sigma = nanstd(x,flag,dim);
+mu = mean(x,dim,'omitnan');
+sigma = std(x,flag,dim,'omitnan');
 sigma0 = sigma;
 sigma0(sigma0==0) = 1;
 z = bsxfun(@minus,x, mu);
