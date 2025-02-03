@@ -218,7 +218,7 @@ for i = 1:nUnits
         map = Map(trainingPositions,s,'nbins',nBinsPerDim,'smooth',5,'type',[type 'l']);
         % extra letter for 'type' required as input for 'Map' even though this extra 'l' does not refer to anything in the case of a point process (spikes) provided
     else
-        map = Map(trainingPositions,s,'nbins',nBinsPerDim,'smooth',3,'type',type);
+        map = Map(trainingPositions,s,'nbins',nBinsPerDim,'smooth',3,'type',type,'minTime',0.005);
     end
     map.z = map.z';
     lambda(:,i) = map.z(:); % squeeze space dimensions to 1
@@ -355,14 +355,14 @@ bad = isnan(headingAngle) | any(isnan(actual),2);
 errors = nan(size(estimations,2:3));
 
 mask = abs((1:nBinsPerDim(end))-mean([1 nBinsPerDim(end)]))<distanceThreshold;
-for i=1:size(actual,1)
+if strcmp(normalize,'on'), fun = @(x) x./sum(x); else fun = @(x) x; end
+for i=1:size(actual,1) 
     if bad(i), continue; end
     q = translateMatrix(estimations(:,:,i),ceil(-actual(i,[2 1]).*nBinsPerDim + nBinsPerDim/2)); q(q==0) = nan;
     q = rotateMatrix(q,headingAngle(i)); q(q==0) = nan;
     q(isnan(q(:))) = (1-nansum(q(:)))./sum(isnan(q(:))); 
     q = q(mask,:); 
-    if strcmp(normalize,'on'), q(isnan(q(:))) = (1-nansum(q(:)))./sum(isnan(q(:))); end
-    errors(:,i) = nansum(q);
+    errors(:,i) = fun(nansum(q));  
 end
 
 if nargout<2
