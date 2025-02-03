@@ -1,4 +1,4 @@
-function rec = PlotIntervals(intervals,varargin)
+function varargout = PlotIntervals(intervals,varargin)
 
 %PlotIntervals - Plot vertical bars or rectangles to show interval limits.
 %
@@ -24,6 +24,10 @@ function rec = PlotIntervals(intervals,varargin)
 %     'ylim'        desired y-coordinates of the plotted areas
 %     'legend'      if 'off', plotted elements won't appear in legend
 %                   (default = 'on')
+%     'bottom'      if true (default), lower plotted elements to bottom of
+%                   visual stack; note: computationally expensive, setting this
+%                   property to false and calling PlotIntervals before
+%                   other plot funcitons is recommended
 %    =========================================================================
 %
 
@@ -42,6 +46,7 @@ style = 'rectangles';
 direction = 'v';
 yLim = ylim;
 legend = 'on';
+bottom = true;
 
 if nargin < 1
   error('Incorrect number of parameters (type ''help <a href="matlab:help PlotIntervals">PlotIntervals</a>'' for details).');
@@ -98,6 +103,11 @@ if ~parsed
                 if ~isastring(legend,'on','off')
 					error('Incorrect value for property ''legend'' (type ''help <a href="matlab:help PlotIntervals">PlotIntervals</a>'' for details).');
                 end
+            case 'bottom'
+                bottom = varargin{i+1};
+                if ~islscalar(bottom)
+                    error('Incorrect value for property ''bottom'' (type ''help <a href="matlab:help PlotIntervals">PlotIntervals</a>'' for details).');
+                end
             otherwise
 				error(['Unknown property ''' num2str(varargin{i}) ''' (type ''help <a href="matlab:help PlotIntervals">PlotIntervals</a>'' for details).']);
 		end
@@ -117,6 +127,7 @@ if strcmp(style,'bars')
 		end
 	end
 else
+    n_lines = numel(gca().Children); % to use later to restore lines order in plot
     for i = 1:size(intervals,1)
         if strcmp(direction,'v')
 			dx = intervals(i,2)-intervals(i,1);
@@ -128,7 +139,13 @@ else
             rec(i) = patch(xLim(1)+[0,0,dx,dx],intervals(i,1)+[0,dy,dy,0],color,'FaceAlpha',alpha,'LineStyle','none','HandleVisibility',legend);
         end
     end
-    if exist('rec','var') % if rectangles were plotted
-        uistack(rec,'bottom'); % lower them to bottom
+    % if rectangles were plotted and if requested, lower them to bottom
+    if exist('rec','var') && bottom
+        ax = gca();
+        ax.Children = ax.Children([end-n_lines+1:end,1:end-n_lines]);
     end
+end
+
+if nargout>0
+    varargout{1} = rec;
 end

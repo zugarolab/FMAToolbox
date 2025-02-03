@@ -63,8 +63,7 @@
 {
 	"inputs":
 	[
-		{"name":"location", "kind":"required", "type":"choice={'topleft','top','
-		topright','left','center','right','bottomleft','bottom','bottomright'}"},
+		{"name":"location", "kind":"required", "type":"choice={'topleft','top','topright','left','center','right','bottomleft','bottom','bottomright'}"},
 		{"name":"size", "kind":"required", "type":"numeric"},
 		{"name":"margin", "kind":"namevalue", "type":"numeric"}
 	]
@@ -192,7 +191,10 @@
 		{"name":"style", "kind":"namevalue", "type":"choices={'bars','rectangles'}"},
 		{"name":"direction", "kind":"namevalue", "type":"choices={'h','v'}"},
 		{"name":"color", "kind":"namevalue", "type":"numeric"},
-		{"name":"alpha", "kind":"namevalue", "type":"numeric"}
+		{"name":"alpha", "kind":"namevalue", "type":"numeric"},
+		{"name":"ylim", "kind":"namevalue", "type":"numeric"},
+		{"name":"legend", "kind":"namevalue", "type":"choices={'on','off,}"},
+		{"name":"bottom", "kind":"namevalue", "type":"choices={true,false}"}
 	]
 },
 
@@ -348,8 +350,7 @@
 	"inputs":
 	[
 		{"name":"a", "kind":"optional", "type":"numeric"},
-		{"name":"location", "kind":"required", "type":"choices={'top','bottom','left','
-		right'}"},
+		{"name":"location", "kind":"required", "type":"choices={'top','bottom','left','right'}"},
 		{"name":"size", "kind":"required", "type":"numeric"},
 		{"name":"gap", "kind":"namevalue", "type":"numeric"}
 	]
