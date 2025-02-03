@@ -43,7 +43,7 @@ function [r,p,st,sp,rShuffled,aShuffled,bShuffled,c,cShuffled,jump,jumpShuffled,
 %     jumpShuffled    jump values of shuffled matrices
 %     maxJump         max jump value of matrix
 %     maxJumpShuffled max jump values of shuffled matrices
-%     quadrantScore   quadrant score (as described by Feng et al 2016)
+%     quadrantScore   quadrant score (as described by Feng et al 2015)
 %
 %  SEE ALSO
 %
@@ -238,7 +238,7 @@ if strcmp(shuffle,'column')
         mockSums = CircularShift(sums,shift);
         [rShuffled(i),ind] = max(mean(mockSums(indices),2));
         aShuffled(i) = a(ind); bShuffled(i) = b(ind);
-        if strcmp(wcorr,'on') || strcmp(jumps,'on') || strcmp(quandrant,'on')
+        if strcmp(wcorr,'on') || strcmp(jumps,'ok') || strcmp(quandrant,'on')
             mockMatrix = CircularShift(matrix,shift);
             if strcmp(wcorr,'on') || strcmp(quandrant,'on')
                 if strcmp(circular,'on'),
@@ -249,8 +249,9 @@ if strcmp(shuffle,'column')
                 score = nanmean(nanmean(mockMatrix(Qok)));
                 score(2) = nanmean(nanmean(mockMatrix(Qcontrol)));
                 qShuffled(i) = (score(1)-score(2))./sum(score,2);
+
             end
-            if strcmp(jumps,'on')
+            if strcmp(jumps,'ok')
                 [~,wherePmax] = max(mockMatrix(:,goodWindows));
                 d = diff(wherePmax);
                 if strcmp(circular,'on'),
