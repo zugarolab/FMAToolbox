@@ -22,6 +22,12 @@ function varargout = PlotIntervals(intervals,varargin)
 %     'color'       rectangle color ('rectangles' mode, default = grey)
 %     'alpha'       rectangle transparency ('rectangles' mode, default = 1)
 %     'ylim'        desired y-coordinates of the plotted areas
+%     'legend'      if 'off', plotted elements won't appear in legend
+%                   (default = 'on')
+%     'bottom'      if true (default), lower plotted elements to bottom of
+%                   visual stack; note: computationally expensive, setting this
+%                   property to false and calling PlotIntervals before
+%                   other plot funcitons is recommended
 %    =========================================================================
 %
 
@@ -35,10 +41,12 @@ function varargout = PlotIntervals(intervals,varargin)
 
 % Default values
 color = [0.9 0.9 0.9];
-alphaValue = 0.5;
+alpha = 0.5;
 style = 'rectangles';
 direction = 'v';
 yLim = ylim;
+legend = 'on';
+bottom = true;
 
 if nargin < 1
   error('Incorrect number of parameters (type ''help <a href="matlab:help PlotIntervals">PlotIntervals</a>'' for details).');
@@ -50,12 +58,12 @@ end
 % Backward compatibility: previous versions used the syntax PlotIntervals(intervals,style,direction)
 parsed = false;
 if (nargin == 2 || nargin == 3) && isastring(lower(varargin{1}),'rectangles','bars')
-	style = lower(varargin{1});
-	parsed = true;
+    style = lower(varargin{1});
+    parsed = true;
 end
 if nargin == 3 && isastring(lower(varargin{2}),'h','v')
-	direction = lower(varargin{2});
-	parsed = true;
+    direction = lower(varargin{2});
+    parsed = true;
 end
 
 % Parse parameter list
@@ -64,7 +72,7 @@ if ~parsed
 		if ~ischar(varargin{i})
 			error(['Parameter ' num2str(i+1) ' is not a property (type ''help <a href="matlab:help PlotIntervals">PlotIntervals</a>'' for details).']);
 		end
-		switch(lower(varargin{i}))
+		switch lower(varargin{i})
 			case 'style'
 				style = lower(varargin{i+1});
 				if ~isastring(style,'bars','rectangles')
@@ -81,14 +89,24 @@ if ~parsed
 					error('Incorrect value for property ''direction'' (type ''help <a href="matlab:help PlotIntervals">PlotIntervals</a>'' for details).');
 				end
 			case 'alpha'
-                alphaValue = varargin{i+1};
-                if ~isdscalar(alphaValue,'>=0','<=1')
+                alpha = varargin{i+1};
+                if ~isdscalar(alpha,'>=0','<=1')
                     error('Incorrect value for property ''alpha'' (type ''help <a href="matlab:help PlotIntervals">PlotIntervals</a>'' for details).');
                 end
             case 'ylim'
                 yLim = varargin{i+1};
                 if ~isdvector(yLim,'<')
                     error('Incorrect value for property ''yLim'' (type ''help <a href="matlab:help PlotIntervals">PlotIntervals</a>'' for details).');
+                end
+            case 'legend'
+                legend = lower(varargin{i+1});
+                if ~isastring(legend,'on','off')
+					error('Incorrect value for property ''legend'' (type ''help <a href="matlab:help PlotIntervals">PlotIntervals</a>'' for details).');
+                end
+            case 'bottom'
+                bottom = varargin{i+1};
+                if ~islscalar(bottom)
+                    error('Incorrect value for property ''bottom'' (type ''help <a href="matlab:help PlotIntervals">PlotIntervals</a>'' for details).');
                 end
             otherwise
 				error(['Unknown property ''' num2str(varargin{i}) ''' (type ''help <a href="matlab:help PlotIntervals">PlotIntervals</a>'' for details).']);
@@ -101,34 +119,33 @@ xLim = xlim;
 if strcmp(style,'bars')
 	for i = 1:size(intervals,1)
 		if strcmp(direction,'v')
-			plot([intervals(i,1) intervals(i,1)],yLim,'Color',[0 0.75 0]);
-			plot([intervals(i,2) intervals(i,2)],yLim,'Color',[0.9 0 0]);
+			plot([intervals(i,1) intervals(i,1)],yLim,'Color',[0 0.75 0],'HandleVisibility',legend);
+			plot([intervals(i,2) intervals(i,2)],yLim,'Color',[0.9 0 0],'HandleVisibility',legend);
 		else
-			plot(xLim,[intervals(i,1) intervals(i,1)],'Color',[0 0.75 0]);
-			plot(xLim,[intervals(i,2) intervals(i,2)],'Color',[0.9 0 0]);
+			plot(xLim,[intervals(i,1) intervals(i,1)],'Color',[0 0.75 0],'HandleVisibility',legend);
+			plot(xLim,[intervals(i,2) intervals(i,2)],'Color',[0.9 0 0],'HandleVisibility',legend);
 		end
 	end
 else
-	for i=1:size(intervals,1)
-		if strcmp(direction,'v')
+    n_lines = numel(gca().Children); % to use later to restore lines order in plot
+    for i = 1:size(intervals,1)
+        if strcmp(direction,'v')
 			dx = intervals(i,2)-intervals(i,1);
 			dy = yLim(2)-yLim(1);
-			rec(i) = patch(intervals(i,1)+[0 0 dx dx],yLim(1)+[0 dy dy 0],color,'LineStyle','none');
-			alpha(rec(i),alphaValue);
+            rec(i) = patch(intervals(i,1)+[0,0,dx,dx],yLim(1)+[0,dy,dy,0],color,'FaceAlpha',alpha,'LineStyle','none','HandleVisibility',legend);
 		else
 			dx = xLim(2)-xLim(1);
 			dy = intervals(i,2)-intervals(i,1);
-			rec(i) = patch(xLim(1)+[0 0 dx dx],intervals(i,1)+[0 dy dy 0],color,'LineStyle','none');
-			alpha(rec(i),alphaValue);
-			alpha(rec(i),alphaValue);
+            rec(i) = patch(xLim(1)+[0,0,dx,dx],intervals(i,1)+[0,dy,dy,0],color,'FaceAlpha',alpha,'LineStyle','none','HandleVisibility',legend);
         end
     end
-    if exist('rec','var') % if something was actually plotted
-        uistack(rec,'bottom'); % show it
+    % if rectangles were plotted and if requested, lower them to bottom
+    if exist('rec','var') && bottom
+        ax = gca();
+        ax.Children = ax.Children([end-n_lines+1:end,1:end-n_lines]);
     end
 end
 
 if nargout>0
     varargout{1} = rec;
 end
-
