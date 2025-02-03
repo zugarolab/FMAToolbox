@@ -198,6 +198,7 @@ for i = 1:nUnits
     end
     map.z = map.z';
     lambda(:,i) = map.z(:); % squeeze space dimensions to 1
+    lambda(:,i) = lambda(:,i) +eps;
 end
 
 % Compute occupancy probability P(x) (i.e. normalized occupancy map)
