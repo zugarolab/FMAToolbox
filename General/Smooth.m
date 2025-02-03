@@ -9,10 +9,9 @@ function smoothed = Smooth(data,smooth,varargin)
 %    data           data to smooth
 %    smooth         vertical and horizontal kernel sizes:
 %                    - gaussian: standard deviations [Sv Sh] (optionally,
-%                      kernel half-size W can be provided as [Sv Sh Wv Wh])
-%                      (default half-size: [10*Sv 10*Sh])
+%                      kernel size W can also be provided as [Sv Sh Wv Wh])
 %                    - rectangular/triangular: window half size [Nv Nh]
-%                      (in number of samples, 0 = no smoothing)
+%                   (in number of samples, 0 = no smoothing)
 %    <options>      optional list of property-value pairs (see table below))
 %
 %    =========================================================================
@@ -23,6 +22,8 @@ function smoothed = Smooth(data,smooth,varargin)
 %                   - for 1D data, only one letter is used (default 'll')
 %     'kernel'      either 'gaussian' (default), 'rectangular' (running
 %                   average), or 'triangular' (weighted running average)
+%     'nans'        set to 'on' to ignore nans and force the smooth 
+%                   (default = 'off')
 %    =========================================================================
 %
 
@@ -33,12 +34,15 @@ function smoothed = Smooth(data,smooth,varargin)
 % the Free Software Foundation; either version 3 of the License, or
 % (at your option) any later version.
 
-
+maxSize = 10001;
+ignoreNans = 'off';
+transpose = false;
 if nargin < 2,
 	error('Incorrect number of parameters (type ''help <a href="matlab:help Smooth">Smooth</a>'' for details).');
 end
 
 vector = isvector(data);
+
 matrix = (~vector & length(size(data)) == 2);
 if ~vector & ~matrix,
 	error('Smoothing applies only to vectors or matrices (type ''help <a href="matlab:help Smooth">Smooth</a>'' for details).');
@@ -46,13 +50,19 @@ end
 
 % Vectors must be 'vertical'
 if size(data,1) == 1,
-	data = data';
+	data = data'; transpose = true;
 end
 
 % Default values
 kernel = 'gaussian';
 if vector, type = 'l'; else type = 'll'; end
 
+% If Sh = Sv = 0, no smoothing required
+if all(smooth==0),
+	smoothed = data;
+     if transpose, smoothed = smoothed'; end
+	return
+end
 
 % Parse parameter list
 for i = 1:2:length(varargin),
@@ -63,29 +73,31 @@ for i = 1:2:length(varargin),
 		case 'type',
 			type = lower(varargin{i+1});
 			if (vector && ~isastring(type,'c','l')) || (~vector && ~isastring(type,'cc','cl','lc','ll')),
-				error('Incorrect value for property ''type'' (type ''help <a href="matlab:help Smooth">Smooth</a>'' for details).');
-			end
-		case 'kernel',
-			kernel = lower(varargin{i+1});
-			if ~isastring(kernel,'gaussian','rectangular','triangular'),
-				error('Incorrect value for property ''kernel'' (type ''help <a href="matlab:help Smooth">Smooth</a>'' for details).');
-			end
-		otherwise,
+                error('Incorrect value for property ''type'' (type ''help <a href="matlab:help Smooth">Smooth</a>'' for details).');
+            end
+        case 'kernel',
+            kernel = lower(varargin{i+1});
+            if ~isastring(kernel,'gaussian','rectangular','triangular'),
+                error('Incorrect value for property ''kernel'' (type ''help <a href="matlab:help Smooth">Smooth</a>'' for details).');
+            end
+        case 'nans',
+            ignoreNans = lower(varargin{i+1});
+            if ~isastring(ignoreNans,'off','on'),
+                error('Incorrect value for property ''kernel'' (type ''help <a href="matlab:help Smooth">Smooth</a>'' for details).');
+            end
+        otherwise,
 			error(['Unknown property ''' num2str(varargin{i}) ''' (type ''help <a href="matlab:help Smooth">Smooth</a>'' for details).']);
 
   end
 end
 
-% Make sure smooth is integer
-if ~isiscalar(smooth) && ~isivector(smooth),
-	warning(['Rounding smooth values.']); 
-	smooth = floor(smooth);
-end
-
-% If Sh = Sv = 0, no smoothing required
-if all(smooth==0),
-	smoothed = data;
-	return
+if strcmp(ignoreNans,'on') && vector && any(isnan(data)),
+    smoothed = data;
+    nans = isnan(data);
+    data(nans) = [];
+    smoothed(~nans) = Smooth(data, smooth, varargin{:});
+    if transpose, smoothed = smoothed'; end
+    return
 end
 
 % Check kernel parameters
@@ -96,12 +108,7 @@ end
 if strcmp(kernel,'gaussian'),
 	if ~isdvector(smooth,'>=0') | (vector & ~ismember(length(smooth),[1 2])) | (matrix & ~ismember(length(smooth),[2 4])),
 		error('Incorrect value for property ''smooth'' (type ''help <a href="matlab:help Smooth">Smooth</a>'' for details).');
-    end
-    % Define default half-size of the kernel
-    defaultKernelSize = 10 * smooth(1);
-    if ~vector,
-        defaultKernelSize = [defaultKernelSize 10*smooth(2)];
-    end
+	end
 else
 	if ~isdvector(smooth,'>=0') | (vector & length(smooth) ~= 1) | (matrix & length(smooth) ~= 2),
 		error('Incorrect value for property ''smooth'' (type ''help <a href="matlab:help Smooth">Smooth</a>'' for details).');
@@ -148,7 +155,8 @@ else
 	elseif matrix && length(smooth) == 4,
 		vKernelSize = smooth(3);
 	else
-		vKernelSize = defaultKernelSize(1);
+		if vSize > maxSize, warning(['Default kernel too large; using ' int2str(maxSize) ' points.']); end
+		vKernelSize = min([vSize maxSize]);
 	end
 	r = (-vKernelSize:vKernelSize)'/vKernelSize;
 	vKernelStdev = smooth(1)/vKernelSize;
@@ -158,8 +166,9 @@ else
 	if ~vector,
 		if length(smooth) == 4,
 			hKernelSize = smooth(4);
-        else
-			hKernelSize = defaultKernelSize(2);
+		else
+			if hSize > maxSize, warning(['Default kernel too large; using ' int2str(maxSize) ' points.']); end
+			hKernelSize = min([hSize maxSize]);
 		end
 		r = (-hKernelSize:hKernelSize)/hKernelSize;
 		hKernelStdev = smooth(2)/hKernelSize;
@@ -279,3 +288,5 @@ else
 		smoothed = tmp(vStart:vStop,hStart:hStop);
 	end
 end
+
+if transpose, smoothed = smoothed'; end
