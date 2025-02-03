@@ -77,7 +77,7 @@ for i = 1:2:length(varargin),
 end
 
 % Make sure smooth is integer
-if ~isiscalar(smooth) || ~isivector(smooth),
+if ~isiscalar(smooth) && ~isivector(smooth),
 	warning(['Rounding smooth values.']); 
 	smooth = floor(smooth);
 end
