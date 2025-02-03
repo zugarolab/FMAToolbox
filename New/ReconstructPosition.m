@@ -223,7 +223,7 @@ end
 
 % In rare cases there may be a neuron that didn't fire at all during training.
 % This results in multiplying/dividing by zero, so they should be ignored
-silent = sum(lambda)==0 | tooFew; 
+silent = sum(lambda)==0 | tooFew'; 
 spikecount(silent,:) = [];
 lambda(:,silent) = [];
 

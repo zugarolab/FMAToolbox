@@ -44,6 +44,16 @@ function [errors,average,estimations,actual,headingAngle] = ReconstructPosition2
 %                   Units with fewer spikes in the training set than
 %                   "minSpikes" will not be used to compute firing maps or
 %                   estimate positions (default = 100). 
+%     'distanceThreshold' the number of lateral bins (othogonal to the
+%                   movement direction) that are taken into account to
+%                   produce the flattened theta probabilities
+%     'normalize'   After summing the probabilities along the orthogonal
+%                   dimension, re-normalize the probability matrix so that
+%                   (default = 'on') the sum of all available bins is 1.
+%                   When set to 'off', the sum of probability within a
+%                   given time bin may be below 1, as some decoded spatial
+%                   bins may be too far (>distanceThreshold) to be included
+%                   in the final matrix. 
 %    =========================================================================
 %
 %   OUTPUT
@@ -69,6 +79,8 @@ intervalID = [];
 prior = 'off';
 interpolate = 'on';
 minSpikes = 100;
+distanceThreshold = nBinsPerDim;
+normalize = 'on';
 
 % If spikes are provided in cell format, transform them to matrix
 if isstruct(spikes) && isfield(spikes,'times')
@@ -130,6 +142,16 @@ for i = 1:2:length(varargin)
             minSpikes = varargin{i+1};
             if ~isiscalar(minSpikes)
                 builtin('error',['Incorrect value for property ''' varargin{i} ''' (type ''help <a href="matlab:help ReconstructPosition">ReconstructPosition</a>'' for details).']);
+            end
+        case 'distancethreshold'
+            distanceThreshold = varargin{i+1};
+            if ~isiscalar(distanceThreshold)
+                builtin('error',['Incorrect value for property ''' varargin{i} ''' (type ''help <a href="matlab:help ReconstructPosition">ReconstructPosition</a>'' for details).']);
+            end
+        case 'normalize'
+            normalize = varargin{i+1};
+            if ~isastring(normalize,'on','off')
+                error('Incorrect value for property ''prior'' (type ''help <a href="matlab:help ReconstructPosition">ReconstructPosition</a>'' for details).');
             end
         case 'type'
             type = lower(varargin{i+1});
@@ -224,7 +246,7 @@ end
 
 % In rare cases there may be a neuron that didn't fire at all / enough during training.
 % This results in multiplying/dividing by zero, so they should be ignored
-silent = sum(lambda)==0 | tooFew; 
+silent = sum(lambda)==0 | tooFew'; 
 spikecount(silent,:) = [];
 lambda(:,silent) = [];
 
@@ -256,7 +278,7 @@ dt = diff(windows(~uniform,:),[],2);
 
 % To avoid overflow errors due to large values of (dt*lambda).^n and factorial(n), we compute the exponentials of their logs
 % numerator = exp(n*log(dt)+n*log(lambda))
-% denominator = exp(logfactorial(n))
+% denominator = exp(logfactorial(n))normalize
 nlogdt = sum(bsxfun(@times,spikecount,log(dt)'));
 nloglambda = log(lambda)*spikecount;
 % numerator = exp(bsxfun(@plus,nlogdt,nloglambda));
@@ -332,11 +354,14 @@ headingAngle = atan2(d(:,1),d(:,2));
 bad = isnan(headingAngle) | any(isnan(actual),2);
 errors = nan(size(estimations,2:3));
 
+mask = abs((1:nBinsPerDim(end))-mean([1 nBinsPerDim(end)]))<distanceThreshold;
 for i=1:size(actual,1)
     if bad(i), continue; end
     q = translateMatrix(estimations(:,:,i),ceil(-actual(i,[2 1]).*nBinsPerDim + nBinsPerDim/2)); q(q==0) = nan;
     q = rotateMatrix(q,headingAngle(i)); q(q==0) = nan;
-    q(isnan(q(:))) = (1-nansum(q(:)))./sum(isnan(q(:)));
+    q(isnan(q(:))) = (1-nansum(q(:)))./sum(isnan(q(:))); 
+    q = q(mask,:); 
+    if strcmp(normalize,'on'), q(isnan(q(:))) = (1-nansum(q(:)))./sum(isnan(q(:))); end
     errors(:,i) = nansum(q);
 end
 
@@ -373,9 +398,9 @@ end
 function [indices,values] = FindClosest(reference, query, mode)
 
 %FindClosest - field the indices of a reference vector closest to a query vector
-% Look up a query vector in a reference vector, and for each value in 
+% Look up a query vector in a reference vector, and for each value in
 % the query vector, return the index of the closest value in the
-% reference vector. 
+% reference vector.
 %
 % USAGE
 %
@@ -384,7 +409,7 @@ function [indices,values] = FindClosest(reference, query, mode)
 %    reference      reference signal which will be used as the table look-up
 %    query          query signal. For each value of this signal, the function
 %                   will look for the closest value in the reference signal
-%    mode           a string ('either','higher', or 'lower') indicating 
+%    mode           a string ('either','higher', or 'lower') indicating
 %                   whether the function should find the closest value in
 %                   reference higher than the query ('higher) or lower than
 %                   the query ('lower') or the closest value regardless of
@@ -395,7 +420,7 @@ function [indices,values] = FindClosest(reference, query, mode)
 % indices = FindClosests(spikes(:,1),deltas(:,2)) will return the indices of spikes closest to the delta wave peak
 % d = deltas(:,2) - spikes(indices) will contain all the minimal distances between delta wave peaks and spikes (one distance per each delta wave)
 %
-% NOTE 
+% NOTE
 % This is an optimized implementation of computing the following trivial code:
 % for i=1:length(reference), indices(i,1) = find(abs(query-reference(i)) == min(abs(query-reference(i))), 1, 'first'); end
 % values = reference(indices);
