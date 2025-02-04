@@ -1,4 +1,4 @@
-function varargout = PlotIntervals(intervals,varargin)
+function PlotIntervals(intervals,varargin)
 
 %PlotIntervals - Plot vertical bars or rectangles to show interval limits.
 %
@@ -47,7 +47,7 @@ style = 'rectangles';
 direction = 'v';
 yLim = ylim;
 legend = 'on';
-bottom = true;
+bottom = 'on';
 
 if nargin < 1
   error('Incorrect number of parameters (type ''help <a href="matlab:help PlotIntervals">PlotIntervals</a>'' for details).');
@@ -105,7 +105,7 @@ if ~parsed
 					error('Incorrect value for property ''legend'' (type ''help <a href="matlab:help PlotIntervals">PlotIntervals</a>'' for details).');
                 end
             case 'bottom'
-                bottom = varargin{i+1};
+                bottom = lower(varargin{i+1});
                 if islscalar(bottom), if bottom, bottom = 'on'; else, bottom = 'off'; end; end % accept boolean input for back compatibility
                 if ~isastring(bottom,'on','off')
                     error('Incorrect value for property ''bottom'' (type ''help <a href="matlab:help PlotIntervals">PlotIntervals</a>'' for details).');
@@ -141,15 +141,12 @@ else
             patch(xLim(1)+[0,0,dx,dx],intervals(i,1)+[0,dy,dy,0],color,'FaceAlpha',alpha,'LineStyle','none','HandleVisibility',legend);
         end
     end
-    nNewObjects = numel(gca().Children)-nPreexistingObjects;
+    nObjects = numel(gca().Children);
+    nNewObjects = nObjects-nPreexistingObjects;
     % if rectangles were plotted and if requested, lower them to bottom
     if nNewObjects>0 && strcmp(bottom,'on')
         ax = gca();
         order = [nNewObjects+1:nObjects,1:nNewObjects];
         ax.Children = ax.Children(order);
     end
-end
-
-if nargout>0
-    varargout{1} = rec;
 end
