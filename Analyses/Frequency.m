@@ -22,7 +22,7 @@ function frequency = Frequency(timestamps,varargin)
 %     'limits'      [start stop] in seconds (default = approx. first and last
 %                   timestamps)
 %     'binSize'     bin size in seconds (default = 0.050)
-%     'smooth'      Gaussian kernel width in number of samples (default = 2)
+%     'smooth'      Gaussian kernel std in number of samples (default = 2)
 %     'show'        plot results (default = 'off')
 %    =========================================================================
 %
@@ -47,63 +47,63 @@ limits = [];
 show = 'off';
 
 % Check number of parameters
-if nargin < 1,
+if nargin < 1
   error('Incorrect number of parameters (type ''help <a href="matlab:help Frequency">Frequency</a>'' for details).');
 end
 
 % Check parameter sizes
-if size(timestamps,2) ~= 1,
+if size(timestamps,2) ~= 1
 	error('Parameter ''timestamps'' is not a vector (type ''help <a href="matlab:help Frequency">Frequency</a>'' for details).');
 end
 
 % Parse parameter list
-for i = 1:2:length(varargin),
-	if ~ischar(varargin{i}),
+for i = 1:2:length(varargin)
+	if ~ischar(varargin{i})
 		error(['Parameter ' num2str(i+2) ' is not a property (type ''help <a href="matlab:help Frequency">Frequency</a>'' for details).']);
 	end
-	switch(lower(varargin{i})),
+	switch(lower(varargin{i}))
 
-		case 'method',
+		case 'method'
 			method = lower(varargin{i+1});
-			if ~isastring(method,'fixed','adaptive','inverse','iisi'),
+			if ~isastring(method,'fixed','adaptive','inverse','iisi')
 				error('Incorrect value for property ''method'' (type ''help <a href="matlab:help Frequency">Frequency</a>'' for details).');
 			end
 
-		case 'binsize',
+		case 'binsize'
 			binSize = varargin{i+1};
-			if ~isdscalar(binSize,'>=0'),
+			if ~isdscalar(binSize,'>=0')
 				error('Incorrect value for property ''binSize'' (type ''help <a href="matlab:help Frequency">Frequency</a>'' for details).');
 			end
 
-		case 'limits',
+		case 'limits'
 			limits = varargin{i+1};
-			if ~isdvector(limits,'#2'),
+			if ~isdvector(limits,'#2')
 				error('Incorrect value for property ''limits'' (type ''help <a href="matlab:help Frequency">Frequency</a>'' for details).');
 			end
 
-		case 'smooth',
+		case 'smooth'
 			smooth = varargin{i+1};
-			if ~isdscalar(smooth,'>=0'),
+            if ~isdscalar(smooth,'>=0')
 				error('Incorrect value for property ''smooth'' (type ''help <a href="matlab:help Frequency">Frequency</a>'' for details).');
-			end
+            end
 
-		case 'show',
+		case 'show'
 			show = varargin{i+1};
-			if ~isastring(show,'on','off'),
+			if ~isastring(show,'on','off')
 				error('Incorrect value for property ''show'' (type ''help <a href="matlab:help Frequency">Frequency</a>'' for details).');
 			end
 
-		otherwise,
+        otherwise
 			error(['Unknown property ''' num2str(varargin{i}) ''' (type ''help <a href="matlab:help Frequency">Frequency</a>'' for details).']);
 
   end
 end
 
-if isempty(limits),
+if isempty(limits)
 	limits = [timestamps(1)-10*binSize timestamps(end)+10*binSize];
 end
 
-if strcmp(method,'inverse') | strcmp(method,'iisi'),
+if strcmp(method,'inverse') | strcmp(method,'iisi')
 	% Inter-spike intervals
 	ds = diff(timestamps);
 	f1 = 1./ds;
@@ -117,9 +117,10 @@ else
 	t = (limits(1):binSize:limits(2))';
 	T = Bin(timestamps,t,'trim');
 	binned = Accumulate(T,1,size(t));
-	f = Smooth(binned/binSize,smooth);
+    kernelSize = min([size(binned,1),10001]); % compute kernel size matching behavior of Smooth, but without raising a warning
+	f = Smooth(binned/binSize,[smooth,kernelSize]);
 	frequency = [t f];
-	if strcmp(method,'adaptive'),
+	if strcmp(method,'adaptive')
 		% 2) Variable-kernel (requires the above 'pilot' fixed-kernel estimate)
 		% Compute variable-kernel sigma
 		N = length(t);
@@ -129,7 +130,7 @@ else
 		sigma = Clip(sigma,0,N*binSize/3);
 		% Perform variable-kernel smoothing
 		binned = [flipud(binned);binned;flipud(binned)];
-		for i = 1:N,
+		for i = 1:N
 			% Gaussian
 			x = (0:binSize:3*sigma(i))';
 			x = [flipud(-x);x(2:end)];
@@ -144,7 +145,7 @@ else
 	end
 end
 
-if strcmp(lower(show),'on'),
+if strcmp(show,'on')
 	PlotXY(frequency);
 	hold on;
 	PlotTicks(timestamps,'size',10,'k');
