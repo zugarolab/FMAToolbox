@@ -24,15 +24,16 @@ function varargout = PlotIntervals(intervals,varargin)
 %     'ylim'        desired y-coordinates of the plotted areas
 %     'legend'      if 'off', plotted elements won't appear in legend
 %                   (default = 'on')
-%     'bottom'      if true (default), lower plotted elements to bottom of
-%                   visual stack; note: computationally expensive, setting this
-%                   property to false and calling PlotIntervals before
-%                   other plot funcitons is recommended
+%     'bottom'      if 'on' (default = 'on'), lower the newly plotted
+%                   elements to the bottom of visual stack. Note that
+%                   setting this to 'off' is faster, so consider this (and
+%                   PlotIntervals before other plot funcitons) for large
+%                   numbers of intervals.
 %    =========================================================================
 %
 
 % Copyright (C) 2008-2013 by Gabrielle Girardeau & Michaël Zugaro, 
-% (C) 2023 by Ralitsa Todorova (graphics optimization for large numbers of intervals)
+% (C) 2023-2025 by Ralitsa Todorova and Pietro Bozzo (graphics optimization) 
 %
 % This program is free software; you can redistribute it and/or modify
 % it under the terms of the GNU General Public License as published by
@@ -105,7 +106,8 @@ if ~parsed
                 end
             case 'bottom'
                 bottom = varargin{i+1};
-                if ~islscalar(bottom)
+                if islscalar(bottom), if bottom, bottom = 'on'; else, bottom = 'off'; end; end % accept boolean input for back compatibility
+                if ~isastring(bottom,'on','off')
                     error('Incorrect value for property ''bottom'' (type ''help <a href="matlab:help PlotIntervals">PlotIntervals</a>'' for details).');
                 end
             otherwise
@@ -127,22 +129,24 @@ if strcmp(style,'bars')
 		end
 	end
 else
-    n_lines = numel(gca().Children); % to use later to restore lines order in plot
+    nPreexistingObjects = numel(gca().Children); % to use later to restore lines order in plot
     for i = 1:size(intervals,1)
         if strcmp(direction,'v')
 			dx = intervals(i,2)-intervals(i,1);
 			dy = yLim(2)-yLim(1);
-            rec(i) = patch(intervals(i,1)+[0,0,dx,dx],yLim(1)+[0,dy,dy,0],color,'FaceAlpha',alpha,'LineStyle','none','HandleVisibility',legend);
+            patch(intervals(i,1)+[0,0,dx,dx],yLim(1)+[0,dy,dy,0],color,'FaceAlpha',alpha,'LineStyle','none','HandleVisibility',legend);
 		else
 			dx = xLim(2)-xLim(1);
 			dy = intervals(i,2)-intervals(i,1);
-            rec(i) = patch(xLim(1)+[0,0,dx,dx],intervals(i,1)+[0,dy,dy,0],color,'FaceAlpha',alpha,'LineStyle','none','HandleVisibility',legend);
+            patch(xLim(1)+[0,0,dx,dx],intervals(i,1)+[0,dy,dy,0],color,'FaceAlpha',alpha,'LineStyle','none','HandleVisibility',legend);
         end
     end
+    nNewObjects = numel(gca().Children)-nPreexistingObjects;
     % if rectangles were plotted and if requested, lower them to bottom
-    if exist('rec','var') && bottom
+    if nNewObjects>0 && strcmp(bottom,'on')
         ax = gca();
-        ax.Children = ax.Children([end-n_lines+1:end,1:end-n_lines]);
+        order = [nNewObjects+1:nObjects,1:nNewObjects];
+        ax.Children = ax.Children(order);
     end
 end
 
