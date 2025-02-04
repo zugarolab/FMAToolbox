@@ -47,7 +47,7 @@ style = 'rectangles';
 direction = 'v';
 yLim = ylim;
 legend = 'on';
-bottom = true;
+bottom = 'on';
 
 if nargin < 1
   error('Incorrect number of parameters (type ''help <a href="matlab:help PlotIntervals">PlotIntervals</a>'' for details).');
@@ -145,7 +145,7 @@ else
     % if rectangles were plotted and if requested, lower them to bottom
     if nNewObjects>0 && strcmp(bottom,'on')
         ax = gca();
-        order = [nNewObjects+1:nObjects,1:nNewObjects];
+        order = [nNewObjects+1:nNewObjects+nPreexistingObjects,1:nNewObjects];
         ax.Children = ax.Children(order);
     end
 end
