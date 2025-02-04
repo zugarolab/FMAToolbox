@@ -22,24 +22,29 @@
 function test = isastring(x,varargin)
 
 % Check number of parameters
-if nargin < 1,
+if nargin < 1
   error('Incorrect number of parameters (type ''help <a href="matlab:help isastring">isastring</a>'' for details).');
 end
 
 test = true;
 
-if ~isvector(x),
+if ~isvector(x)
 	test = false;
 	return;
 end
-if ~ischar(x),
+
+if isstring(x) % allow the new "string" format (double quotes)
+    x = char(x); 
+end 
+
+if ~ischar(x)
 	test = false;
 	return;
 end
 
 if isempty(varargin), return; end
 
-for i = 1:length(varargin),
+for i = 1:length(varargin)
 	if strcmp(x,varargin{i}), return; end
 end
 
