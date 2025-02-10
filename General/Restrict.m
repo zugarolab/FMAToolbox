@@ -1,4 +1,4 @@
-function samples = Restrict(samples,intervals,varargin)
+function [samples, originalIndex, intervalID] = Restrict(samples,intervals,varargin)
 
 %Restrict - Keep only samples that fall in a given list of time intervals.
 %
@@ -11,10 +11,10 @@ function samples = Restrict(samples,intervals,varargin)
 %
 %  USAGE
 %
-%    samples = Restrict(samples,intervals,<options>)
+%    [samples, originalIndex, intervalID] = Restrict(samples,intervals,<options>)
 %
-%    samples       <a href="matlab:help samples">samples</a> to restrict.
-%                         They have to be provided in the first column.
+%    samples         <a href="matlab:help samples">samples</a> to restrict.
+%                   They have to be provided in the first column.
 %    intervals      list of (start,stop) pairs
 %    <options>      optional list of property-value pairs (see table below)
 %
@@ -41,8 +41,9 @@ function samples = Restrict(samples,intervals,varargin)
 % (at your option) any later version.
 
 % Default values
-verbose = false;
 shift = 'off';
+transpose = false;
+samples(isnan(samples(:,1)),:) = [];
 
 % Check number of parameters
 if nargin < 2 | mod(length(varargin),2) ~= 0,
@@ -50,8 +51,15 @@ if nargin < 2 | mod(length(varargin),2) ~= 0,
 end
 
 % Check parameters
+intervals = double(intervals);
+samples = double(samples);
 if ~isdmatrix(intervals) || size(intervals,2) ~= 2,
   error('Incorrect intervals (type ''help <a href="matlab:help Restrict">Restrict</a>'' for details).');
+end
+
+if size(samples,1) == 1,
+	samples = samples(:);
+    transpose = true;
 end
 
 % Parse parameter list
@@ -64,21 +72,28 @@ for i = 1:2:length(varargin),
 			shift = varargin{i+1};
 			if ~isastring(shift,'on','off'),
 				error('Incorrect value for property ''shift'' (type ''help <a href="matlab:help Restrict">Restrict</a>'' for details).');
-			end
-
-		otherwise,
+            end
+        otherwise,
 			error(['Unknown property ''' num2str(varargin{i}) ''' (type ''help <a href="matlab:help Restrict">Restrict</a>'' for details).']);
 	end
 end
 
 % Restrict
-[status,interval,index] = InIntervals(samples,intervals);
-samples = samples(status,:);
+intervalID = []; originalIndex = []; 
+if ~isempty(samples)
+    [status,interval] = InIntervals(samples,intervals);
+    samples = samples(status,:);
+    intervalID = interval(status==1);
+    originalIndex = find(status==1);
+elseif isempty(samples)
+    samples = [];
+    disp('No samples to restrict');
+end
 
 % Shift?
-if strcmp(shift,'on'),
-	% Discard interval IDs for samples which belong to none of the intervals
-	interval = interval(status);
+if strcmp(shift,'on') && ~isempty(samples),
+    % Discard interval IDs for samples which belong to none of the intervals
+    interval = interval(status);
 	% Samples in each interval will be shifted next to end of the previous interval
 	% Let us call dt1 the time difference between interval 1 and interval 2. Interval 2 must be
 	% shifted by dt1, interval 3 by dt1+dt2 (since interval 2 itself will be shifted by dt1),
@@ -92,3 +107,5 @@ if strcmp(shift,'on'),
 	% 3) Shift
 	samples(:,1) = samples(:,1) - shifts - intervals(1,1);
 end
+
+if transpose, samples = samples'; end
