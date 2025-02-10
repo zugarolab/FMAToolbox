@@ -43,7 +43,7 @@ function [samples, originalIndex, intervalID] = Restrict(samples,intervals,varar
 % Default values
 shift = 'off';
 transpose = false;
-samples(isnan(samples(:,1)),:) = [];
+try samples(isnan(samples(:,1)),:) = []; end
 
 % Check number of parameters
 if nargin < 2 | mod(length(varargin),2) ~= 0,
