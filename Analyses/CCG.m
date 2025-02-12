@@ -6,8 +6,11 @@ function [ccg,t,tau,c] = CCG(times,id,varargin)
 %
 %    [ccg,t,tau,c] = CCG(times,id,<options>)
 %
-%    times          times of all events (see NOTE below)
-%    id             ID for each event (e.g. unit ID) from 1 to n
+%    times          times of all events in seconds (see NOTE below)
+%                   (alternate) - can be {nCells} array of [nSpikes] 
+%                   containing the spiketimes for each cell 
+%    id             ID for each event (e.g. unit ID) from 1 to n. Ignored
+%                   if "times" is a cell (alternate above)
 %    <options>      optional list of property-value pairs (see table below)
 %
 %    =========================================================================
@@ -28,6 +31,9 @@ function [ccg,t,tau,c] = CCG(times,id,varargin)
 %     'alpha'       significance level to determine correlated pairs
 %     'totalTime'   total recording duration in s (if different from the
 %                   default = max(times) - min(times))
+%     'norm'        normalization of the CCG, 'counts' or 'rate'
+%                   'counts' gives raw event/spike count,
+%                   'rate' returns CCG in units of spks/second (default: counts)
 %    =========================================================================
 %
 %  NOTES
@@ -79,7 +85,8 @@ function [ccg,t,tau,c] = CCG(times,id,varargin)
 %
 %    See also CCGParameters, ShortTimeCCG.
 
-% Copyright (C) 2012-2013 by Michaël Zugaro, Marie Goutierre
+% Copyright (C) 2012-2013 by Michaël Zugaro, Marie Goutierre,
+%           (C) 2017 by Dan Levenstein (norm and cell options)
 %
 % This program is free software; you can redistribute it and/or modify
 % it under the terms of the GNU General Public License as published by
@@ -97,6 +104,21 @@ groups = [];
 mode = 'ccg';
 alpha = 0.05;
 IDrange=[];
+normtype = 'counts';
+
+% Option for spike times to be in {Ncells} array of spiketimes DL2017
+if iscell(times)
+    clear id
+    numcells = length(times);
+    for cc = 1:numcells
+        id{cc}=cc.*ones(size(times{cc}));
+    end
+    times = cat(1,times{:}); id = cat(1,id{:});
+end
+
+%Sort
+[times,idx] = sort(times);
+id = id(idx);
 
 % Check parameters
 if nargin < 2,
@@ -155,25 +177,30 @@ for i = 1:2:length(varargin),
 			mode = varargin{i+1};
 			if ~isastring(mode,'ccg','ccv'),
 				error('Incorrect value for property ''mode'' (type ''help <a href="matlab:help CCG">CCG</a>'' for details).');
-			end
-		case 'totaltime',
-			totalTime = varargin{i+1};
+            end
+        case 'totaltime',
+            totalTime = varargin{i+1};
             if ~isdscalar(totalTime,'>0'),
                 error('Incorrect value for property ''totaltime'' (type ''help <a href="matlab:help CCG">CCG</a>'' for details).');
             end
-		case 'range',
-			IDrange = varargin{i+1};
+        case 'range',
+            IDrange = varargin{i+1};
             if ~isdvector(IDrange),
-				error('Incorrect value for property ''range'' (type ''help <a href="matlab:help CCG">CCG</a>'' for details).');
+                error('Incorrect value for property ''range'' (type ''help <a href="matlab:help CCG">CCG</a>'' for details).');
             end
             if ~isempty(groups) && numel(IDrange) ~= 4,
                 error('Incorrect value for property ''range'' (expected four elements). Type ''help <a href="matlab:help CCG">CCG</a>'' for details.')
             end
             if isempty(groups) && numel(IDrange) ~= 2,
                 error('Incorrect value for property ''range'' (expected two elements). Type ''help <a href="matlab:help CCG">CCG</a>'' for details.')
-            end            
+            end
+        case 'normtype',
+            normtype = varargin{i+1};
+            if ~isastring(mode,'counts','rate'),
+                error('Incorrect value for property ''normtype'' (type ''help <a href="matlab:help CCG">CCG</a>'' for details).');
+            end
         otherwise,
-			error(['Unknown property ''' num2str(varargin{i}) ''' (type ''help <a href="matlab:help CCG">CCG</a>'' for details).']);
+            error(['Unknown property ''' num2str(varargin{i}) ''' (type ''help <a href="matlab:help CCG">CCG</a>'' for details).']);
 	end
 end
 
@@ -214,10 +241,29 @@ id = id(i);
 if ~isempty(groups),
 	groups = groups(i);
 end
-counts = CCGEngine(times,id,binSize,halfBins);
+
+if length(times) <= 1,
+    ccg = uint16(zeros(nBins,nIDs,nIDs));
+    return
+end
+
+counts = double(CCGEngine(round(times/Fs),id,round(binSize/Fs),uint32(halfBins))); % EWS, 1/2/2014: Use unsigned integer format to save memory ***
+
+if n < nIDs
+	counts(nBins,nIDs,nIDs) = 0;
+end
 
 % Reshape the results
 counts = reshape(counts,[nBins nIDs nIDs]);
+
+%Rate normalization: counts/numREFspikes/dt to put in units of spikes/s. DL
+switch normtype
+    case 'rate'
+        for gg = 1:nIDs
+            numREFspikes = sum(id==gg);%number of reference events for group
+            counts(:,gg,:) = counts(:,gg,:)./numREFspikes./binSize;
+        end
+end
 
 % Add empty correlograms for IDs within customised range which did not spike
 % As CCGEngine automatically creates empty correlograms for IDs within the
