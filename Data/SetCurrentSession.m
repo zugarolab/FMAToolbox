@@ -158,13 +158,13 @@ end
 
 % Position file
 DATA.positions = [];
-if exist([path separator basename '.pos']),
+if exist([path separator basename '.pos'],'file')
 	DATA.positions = LoadPositions([path separator basename '.pos'],DATA.rates.video);
 	if strcmp(verbose,'on'), disp(['... loaded position file ''' basename '.pos''']); end
-elseif exist([path separator basename '.whl']),
+elseif exist([path separator basename '.whl'],'file')
 	DATA.positions = LoadPositions([path separator basename '.whl'],DATA.rates.video);
 	if strcmp(verbose,'on'), disp(['... loaded position file ''' basename '.whl''']); end
-elseif exist([path separator basename '.whl']),
+elseif exist([path separator basename '.mqa'],'file')
 	DATA.positions = LoadPositions([path separator basename '.mqa'],DATA.rates.video);
 	if strcmp(verbose,'on'), disp(['... loaded position file ''' basename '.mqa''']); end
 else
@@ -172,32 +172,27 @@ else
 end
 
 % Spike files
-if strcmp(spikes,'on'),
+if strcmp(spikes,'on')
 	DATA.spikes = [];
-	for i = 1:DATA.spikeGroups.nGroups,
-		filename = [path separator basename '.' int2str(i) '.clu'];
-		if exist(filename,'file'),
-			try
+    for i = 1:DATA.spikeGroups.nGroups
+		filename = [path separator basename '.clu.' int2str(i)];
+        if exist(filename,'file')
+            try
 				DATA.spikes = [DATA.spikes;LoadSpikeTimes(filename,DATA.rates.wideband)];
-				if strcmp(verbose,'on'), disp(['... loaded spike files ''' basename '.' int2str(i) '.clu''']); end
-			catch
-				if strcmp(verbose,'on'), disp(['... (could not load spike files ''' basename '.' int2str(i) '.clu'')']); end
-			end
-		else
-			filename = [path separator basename '.clu.' int2str(i)];
-			if exist(filename,'file'),
-				try
-					DATA.spikes = [DATA.spikes;LoadSpikeTimes(filename,DATA.rates.wideband)];
-					if strcmp(verbose,'on'), disp(['... loaded spike files ''' basename '.clu.' int2str(i) '''']); end
-				catch
-					if strcmp(verbose,'on'), disp(['... (could not load spike files ''' basename '.clu.' int2str(i) ''')']); end
-				end
-			end
-		end
-	end
-	if isempty(DATA.spikes),
-		if strcmp(verbose,'on'), disp('... (no spike files found)'); end
-	end
+				if strcmp(verbose,'on'), disp(['... loaded spike files ''' basename '.clu.' int2str(i) '''']); end
+            catch ME
+                if strcmp(verbose,'on')
+                    % differentiate error message in case .res file is missing
+                    if ME.identifier == "LoadSpikeTimes:missingRes"
+                        disp(['... (could not load spike file ''' basename '.res.' int2str(i) ''')']);
+                    else                    
+					    disp(['... (could not load spike file ''' basename '.clu.' int2str(i) ''')']);
+                    end
+                end
+            end
+        end
+    end
+	if isempty(DATA.spikes) && strcmp(verbose,'on'), disp('... (no spike files found)'); end
 else
 	if strcmp(verbose,'on'), disp('... (skipping spike files)'); end
 end

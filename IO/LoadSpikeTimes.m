@@ -32,17 +32,16 @@ electrodeGroup = str2num(extension(2:end));
 
 % Load .res file
 filename = [path '/' basename '.res.' int2str(electrodeGroup)];
-if ~exist(filename),
-	error(['File ''' filename ''' not found.']);
+if ~exist(filename,'file')
+	error('LoadSpikeTimes:missingRes',['File ''' filename ''' not found.']);
 end
 res = load(filename);
 
 % Load .clu file
 filename = [path '/' basename '.clu.' int2str(electrodeGroup)];
-if ~exist(filename),
-	error(['File ''' filename ''' not found.']);
+if ~exist(filename,'file')
+	error('LoadSpikeTimes:missingClu',['File ''' filename ''' not found.']);
 end
 clu = load(filename);
 
 times = [res/rate electrodeGroup*ones(size(res)) clu(2:end)];
-
