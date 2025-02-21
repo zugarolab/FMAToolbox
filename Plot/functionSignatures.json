@@ -194,7 +194,7 @@
 		{"name":"alpha", "kind":"namevalue", "type":"numeric"},
 		{"name":"ylim", "kind":"namevalue", "type":"numeric"},
 		{"name":"legend", "kind":"namevalue", "type":"choices={'on','off,}"},
-		{"name":"bottom", "kind":"namevalue", "type":"choices={true,false}"}
+		{"name":"bottom", "kind":"namevalue", "type":"choices={'on','off'}"}
 	]
 },
 
