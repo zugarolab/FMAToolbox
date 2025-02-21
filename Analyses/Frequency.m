@@ -114,12 +114,12 @@ if strcmp(method,'inverse') | strcmp(method,'iisi')
 else
 	% Smoothing
 	% 1) Fixed-kernel
-	t = (limits(1):binSize:limits(2))';
-	T = Bin(timestamps,t,'trim');
-	binned = Accumulate(T,1,size(t));
+    t = (limits(1):binSize:limits(2));
+    binned = histcounts(timestamps,t);
+    t = t(1:end-1); % chosen to match previous behavior of Frequency, t = (t(1:end-1) + t(2:end)) / 2; would be more correct
     kernelSize = min([size(binned,1),10001]); % compute kernel size matching behavior of Smooth, but without raising a warning
 	f = Smooth(binned/binSize,[smooth,kernelSize]);
-	frequency = [t f];
+    frequency = [t; f].';
 	if strcmp(method,'adaptive')
 		% 2) Variable-kernel (requires the above 'pilot' fixed-kernel estimate)
 		% Compute variable-kernel sigma
