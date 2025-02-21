@@ -143,10 +143,10 @@
 		{"name":"threshold", "kind":"namevalue", "type":"numeric"},
 		{"name":"cutoffs", "kind":"namevalue", "type":"numeric"},
 		{"name":"hgamma", "kind":"namevalue", "type":"numeric"},
-		{"name":"colorspace", "kind":"namevalue", "type":"choices={'HSV','RGB'}"},
 		{"name":"bar", "kind":"namevalue", "type":"choices={'on','off'}"},
 		{"name":"type", "kind":"namevalue", "type":"choices={'linear','circular'}"},
-		{"name":"ydir", "kind":"namevalue", "type":"choices={'normal','reverse'}"}
+		{"name":"ydir", "kind":"namevalue", "type":"choices={'normal','reverse'}"},
+        {"name":"piecewise", "kind":"namevalue", "type":"choices={'on','off'}"},
 	]
 },
 

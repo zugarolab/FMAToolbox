@@ -20,12 +20,12 @@ function PlotColorMap(data,dimm,varargin)
 %     'threshold'   dimm values below this limit are zeroed (default = 0.01)
 %     'cutoffs'     lower and upper cutoff values ([] = autoscale, default)
 %     'hgamma'      gamma-like correction for hue (1 = no correction, default)
-%     'colorspace'  'HSV' or 'RGB' (default = 'RGB')
 %     'bar'         draw a color bar (default = 'off')
 %     'type'        either 'linear' or 'circular' (default 'linear')
 %     'ydir'        either 'normal' (default) or 'reverse' (useful when the
 %                   x and y coordinates correspond to spatial positions,
 %                   as video cameras measure y in reverse direction)
+%     'piecewise'   if 'on' (default), set piecewise linear axis labels
 %    =========================================================================
 %
 %  NOTE
@@ -55,87 +55,86 @@ cutoffs = [];
 hgamma = 1;
 gamma = 1;
 hg = 0;
-colorspace = 'rgb';
 threshold = 0.01;
 drawBar = 0;
 type = 'linear';
 [y,x] = size(data);
 x = 1:x;y = 1:y;
 ydir = 'normal';
+piecewise = true;
 
 % Check parameters
-if nargin < 1,
+if nargin < 1
 	error('Incorrect number of parameters (type ''help <a href="matlab:help PlotColorMap">PlotColorMap</a>'' for details).');
 end
-if nargin == 1,
+if nargin == 1
 	dimm = 1;
 end
-if isa(dimm,'char'),
+if isa(dimm,'char')
 	varargin = {dimm varargin{:}};
 	dimm = 1;
 end
 
 % Parse parameter list
-for i = 1:2:length(varargin),
-	if ~ischar(varargin{i}),
+for i = 1:2:length(varargin)
+	if ~ischar(varargin{i})
 		error(['Parameter ' num2str(i+2) ' is not a property (type ''help <a href="matlab:help PlotColorMap">PlotColorMap</a>'' for details).']);
 	end
-	switch(lower(varargin{i})),
+	switch(lower(varargin{i}))
 
-		case 'threshold',
+		case 'threshold'
 			threshold = varargin{i+1};
-			if ~isdscalar(threshold,'>=0'),
+			if ~isdscalar(threshold,'>=0')
 				error('Incorrect value for property ''threshold'' (type ''help <a href="matlab:help PlotColorMap">PlotColorMap</a>'' for details).');
 			end
-		case 'x',
+		case 'x'
 			x = varargin{i+1};
-			if ~isdvector(x),
+			if ~isdvector(x)
 				error('Incorrect value for property ''x'' (type ''help <a href="matlab:help PlotColorMap">PlotColorMap</a>'' for details).');
 			end
-		case 'y',
+		case 'y'
 			y = varargin{i+1};
-			if ~isdvector(y),
+			if ~isdvector(y)
 				error('Incorrect value for property ''y'' (type ''help <a href="matlab:help PlotColorMap">PlotColorMap</a>'' for details).');
 			end
-		case 'cutoffs',
+		case 'cutoffs'
 			cutoffs = varargin{i+1};
-			if ~isdvector(cutoffs,'#2','<') & ~isempty(cutoffs),
+			if ~isdvector(cutoffs,'#2','<') & ~isempty(cutoffs)
 				error('Incorrect value for property ''cutoffs'' (type ''help <a href="matlab:help PlotColorMap">PlotColorMap</a>'' for details).');
 			end
-		case 'hgamma',
+		case 'hgamma'
 			hg = 1;
 			hgamma = varargin{i+1};
-			if ~isdscalar(hgamma,'>=0'),
+			if ~isdscalar(hgamma,'>=0')
 				error('Incorrect value for property ''hgamma'' (type ''help <a href="matlab:help PlotColorMap">PlotColorMap</a>'' for details).');
 			end
-		case 'gamma',
+		case 'gamma'
 			gamma = varargin{i+1};
-			if ~isdscalar(gamma,'>=0'),
+			if ~isdscalar(gamma,'>=0')
 				error('Incorrect value for deprecated property ''gamma'' (type ''help <a href="matlab:help PlotColorMap">PlotColorMap</a>'' for details).');
-			end
-		case 'colorspace',
-			colorspace = lower(varargin{i+1});
-			if ~isastring(colorspace,'hsv','rgb'),
-				error('Incorrect value for property ''colorspace'' (type ''help <a href="matlab:help PlotColorMap">PlotColorMap</a>'' for details).');
-			end
-		case 'bar',
+            end
+		case 'bar'
 			drawBar = lower(varargin{i+1});
-			if ~isastring(drawBar,'on','off'),
+			if ~isastring(drawBar,'on','off')
 				error('Incorrect value for property ''bar'' (type ''help <a href="matlab:help PlotColorMap">PlotColorMap</a>'' for details).');
 			end
-		case 'type',
+		case 'type'
 			type = lower(varargin{i+1});
-			if ~isastring(type,'linear','circular'),
+			if ~isastring(type,'linear','circular')
 				error('Incorrect value for property ''type'' (type ''help <a href="matlab:help PlotColorMap">PlotColorMap</a>'' for details).');
 			end
-		case 'ydir',
+		case 'ydir'
 			ydir = lower(varargin{i+1});
-			if ~isastring(ydir,'normal','reverse'),
+			if ~isastring(ydir,'normal','reverse')
 				error('Incorrect value for property ''ydir'' (type ''help <a href="matlab:help PlotColorMap">PlotColorMap</a>'' for details).');
+            end
+        case 'piecewise'
+			piecewise = strcmpi(varargin{i+1},'on');
+			if ~isastring(lower(varargin{i+1}),'on','off')
+				error('Incorrect value for property ''piecewise'' (type ''help <a href="matlab:help PlotColorMap">PlotColorMap</a>'' for details).');
 			end
-		otherwise,
+        otherwise
 			error(['Unknown property ''' num2str(varargin{i}) ''' (type ''help <a href="matlab:help PlotColorMap">PlotColorMap</a>'' for details).']);
-
 	end
 end
 
@@ -144,10 +143,10 @@ data = double(data);
 % Special defaults
 x = x(:);
 y = y(:);
-if hg == 0,
+if hg == 0
 	hgamma = 1/gamma;
 end
-if ~isempty(cutoffs),
+if ~isempty(cutoffs)
 	m = cutoffs(1);
 	M = cutoffs(2);
 else
@@ -156,7 +155,7 @@ else
 end
 if m == M, M = m+1; end
 if isnan(m), m = 0; M = 1; end
-if length(dimm) == 1,
+if length(dimm) == 1
 	dimm = dimm*ones(size(data));
 end
 
@@ -168,25 +167,23 @@ data = squeeze(data);
 dimm = squeeze(dimm);
 p = imagesc(x,y,data,[m M]);
 set(a,'color',[0 0 0]);
-if any(dimm(:)~=1),
+if any(dimm(:)~=1)
 	alpha(p,1./(1+threshold./(dimm+eps)));
 end
 
 % Set X and Y axes
 set(a,'ydir',ydir,'tickdir','out','box','off');
-if ~isempty(x) && length(x) ~= 1,
+if piecewise && ~isempty(x) && length(x) ~= 1
 	PiecewiseLinearAxis(x);
 end
-if ~isempty(y) && length(y) ~= 1,
+if piecewise && ~isempty(y) && length(y) ~= 1
 	PiecewiseLinearAxis(y,'y');
 end
 
 % Color map and bar
 colormap(gca, Bright(100,'hgamma',hgamma,'type',type));
-if strcmp(drawBar,'on'),
+if strcmp(drawBar,'on')
 	b = colorbar('vert');
 	set(b,'xtick',[],'tickdir','out','box','off','ycolor','k');
 	set(f,'currentaxes',a);
 end
-
-
