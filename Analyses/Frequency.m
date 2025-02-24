@@ -22,7 +22,9 @@ function frequency = Frequency(timestamps,varargin)
 %     'limits'      [start stop] in seconds (default = approx. first and last
 %                   timestamps)
 %     'binSize'     bin size in seconds (default = 0.050)
-%     'smooth'      Gaussian kernel std in number of samples (default = 2)
+%     'smooth'      Gaussian kernel size in number of samples (default = 2);
+%                   for retrocompatibility, smooth * 5 is used as size
+%                   (e.g., default is 10 samples)
 %     'show'        plot results (default = 'off')
 %    =========================================================================
 %
@@ -33,6 +35,7 @@ function frequency = Frequency(timestamps,varargin)
 %    a Nx2 matrix (original spike timestamps in column 1, frequencies in column 2)
 
 % Copyright (C) 2004-2011 by Michaël Zugaro
+%           (C) 2025 by Pietro Bozzo (speed optimization)
 %
 % This program is free software; you can redistribute it and/or modify
 % it under the terms of the GNU General Public License as published by
@@ -117,8 +120,7 @@ else
     t = (limits(1):binSize:limits(2));
     binned = histcounts(timestamps,t);
     t = t(1:end-1); % chosen to match previous behavior of Frequency, t = (t(1:end-1) + t(2:end)) / 2; would be more correct
-    kernelSize = min([size(binned,2),10001]); % compute kernel size matching behavior of Smooth, but without raising a warning
-	f = Smooth(binned/binSize,[smooth,kernelSize]);
+    f = smoothdata(binned/binSize,'gaussian',5*smooth); % factor 5 chosen to match previous behavior of Frequency
     frequency = [t; f].';
 	if strcmp(method,'adaptive')
 		% 2) Variable-kernel (requires the above 'pilot' fixed-kernel estimate)
