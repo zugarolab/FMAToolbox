@@ -183,7 +183,6 @@ end
 % Color map and bar
 colormap(gca, Bright(100,'hgamma',hgamma,'type',type));
 if strcmp(drawBar,'on')
-	b = colorbar('vert');
-	set(b,'xtick',[],'tickdir','out','box','off','ycolor','k');
+	colorbar('vert','TickDirection','out','FontSize',12,'Color',[0,0,0],'Box','off','LineWidth',1.7);
 	set(f,'currentaxes',a);
 end
