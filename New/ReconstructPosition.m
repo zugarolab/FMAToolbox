@@ -1,4 +1,4 @@
-function [estimations,actual,errors,average] = ReconstructPosition(positions,spikes,windows,varargin)
+function [estimations,actual,errors,average,lambda] = ReconstructPosition(positions,spikes,windows,varargin)
 
 % Bayesian reconstruction of positions from spike trains.
 %
@@ -28,6 +28,8 @@ function [estimations,actual,errors,average] = ReconstructPosition(positions,spi
 %                   - for 1D data, only one letter is used (default 'll')
 %     'nBins'       firing curve or map resolution (default = 200 for 1D and
 %                   [200 200] for 2D data)
+%     'smooth'      smooth that will be applied to the firing maps (default
+%                   = 5 for 1D and 10 for 2D positions)
 %     'prior'       taking the map occupancy into account or not (default = 'off')
 %                   This is what makes the reconstruction Bayesien, but if animal
 %                   occupancy is very skewed, the recustruction would be good even
@@ -67,6 +69,7 @@ intervalID = [];
 prior = 'on';
 interpolate = 'on';
 minSpikes = 100;
+smooth = 5;
 
 % If spikes are provided in cell format, transform them to matrix
 if isstruct(spikes) && isfield(spikes,'times')
@@ -93,6 +96,8 @@ if ~isdmatrix(windows,'@2')
     builtin('error','Incorrect value for property ''windows'' (type ''help <a href="matlab:help ReconstructPosition">ReconstructPosition</a>'' for details).');
 end
 
+if nDimensions==2, smooth = 10; end
+
 % Parse parameters
 for i = 1:2:length(varargin)
     if ~ischar(varargin{i})
@@ -105,25 +110,30 @@ for i = 1:2:length(varargin)
                 builtin('error',['Incorrect value for property ''' varargin{i} ''' (type ''help <a href="matlab:help ReconstructPosition">ReconstructPosition</a>'' for details).']);
             end
         case 'nbins'
-	  nBins = varargin{i+1};
-	  if ~isiscalar(nBins) && ~isdmatrix([100 100],'@2','>0')
-	      builtin('error',['Incorrect value for property ''' varargin{i} ''' (type ''help <a href="matlab:help ReconstructPosition">ReconstructPosition</a>'' for details).']);
-	  end
+            nBins = varargin{i+1};
+            if ~isiscalar(nBins) && ~isdmatrix([100 100],'@2','>0')
+                builtin('error',['Incorrect value for property ''' varargin{i} ''' (type ''help <a href="matlab:help ReconstructPosition">ReconstructPosition</a>'' for details).']);
+            end
+        case 'smooth'
+            smooth = varargin{i+1};
+            if ~isdvector(smooth,'>=0') || length(smooth) > 2,
+                builtin('error',['Incorrect value for property ''' varargin{i} ''' (type ''help <a href="matlab:help ReconstructPosition">ReconstructPosition</a>'' for details).']);
+            end
         case 'prior'
-	  prior = varargin{i+1};
-	  if ~isastring(prior,'on','off')
-	      error('Incorrect value for property ''prior'' (type ''help <a href="matlab:help ReconstructPosition">ReconstructPosition</a>'' for details).');
-	  end
+            prior = varargin{i+1};
+            if ~isastring(prior,'on','off')
+                error('Incorrect value for property ''prior'' (type ''help <a href="matlab:help ReconstructPosition">ReconstructPosition</a>'' for details).');
+            end
         case 'interpolate'
-	  interpolate = varargin{i+1};
-	  if ~isastring(interpolate,'on','off')
-	      error('Incorrect value for property ''prior'' (type ''help <a href="matlab:help ReconstructPosition">ReconstructPosition</a>'' for details).');
-	  end
+            interpolate = varargin{i+1};
+            if ~isastring(interpolate,'on','off')
+                error('Incorrect value for property ''prior'' (type ''help <a href="matlab:help ReconstructPosition">ReconstructPosition</a>'' for details).');
+            end
         case 'id'
-	  intervalID = varargin{i+1};
-      if ~isivector(intervalID,'>0')
-          builtin('error',['Incorrect value for property ''' varargin{i} ''' (type ''help <a href="matlab:help ReconstructPosition">ReconstructPosition</a>'' for details).']);
-      end
+            intervalID = varargin{i+1};
+            if ~isivector(intervalID,'>0')
+                builtin('error',['Incorrect value for property ''' varargin{i} ''' (type ''help <a href="matlab:help ReconstructPosition">ReconstructPosition</a>'' for details).']);
+            end
         case 'minspikes'
             minSpikes = varargin{i+1};
             if ~isiscalar(minSpikes)
@@ -191,12 +201,12 @@ for i = 1:nUnits
     unit = trainingSpikes(:,2) == i;
     s = trainingSpikes(unit,1);
     if size(trainingPositions,2)<3
-        map = Map(trainingPositions,s,'nbins',nBins,'smooth',5,'type',[type 'l']);
+        map = Map(trainingPositions,s,'nbins',nBins,'smooth',smooth,'type',[type 'l']);
         % extra letter for 'type' required as input for 'Map' even though this extra 'l' does not refer to anything in the case of a point process (spikes) provided
+        map.z = map.z';
     else
-        map = Map(trainingPositions,s,'nbins',nBins,'smooth',10,'type',type);
+        map = Map(trainingPositions,s,'nbins',nBins,'smooth',smooth,'type',type);
     end
-    map.z = map.z';
     lambda(:,i) = map.z(:); % squeeze space dimensions to 1
     lambda(:,i) = lambda(:,i) +eps;
 end
