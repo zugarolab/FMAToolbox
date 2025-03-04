@@ -1,4 +1,4 @@
-function [pieces ids] = SplitIntervals(intervals,varargin)
+function [pieces, ids] = SplitIntervals(intervals,varargin)
 
 %SplitIntervals - split intervals into even pieces. 
 % Specify either 'pieceSize' or 'nPieces'.
@@ -13,6 +13,8 @@ function [pieces ids] = SplitIntervals(intervals,varargin)
 %     Properties    Values
 %    -------------------------------------------------------------------------
 %     'pieceSize'   the required size of the split intervals
+%     'step'        if overlapping windows are preferred, a step between
+%                   windows (default = pieceSize). 
 %     'nPieces'     alternatively, one can provide the required number of pieces.
 %                   Thus the piece size is dictated by the overall duration of 
 %                   the intervals, divided by nPieces.
@@ -51,7 +53,7 @@ function [pieces ids] = SplitIntervals(intervals,varargin)
 % SplitIntervals([0 2.1],'pieceSize',1,'mode','keep','extend',true) generates [0 1; 1 2; 2 3]
 % extending the last piece so that it is also 1 second long.
 %
-% Copyright (C) 2019-2023 Ralitsa Todorova & (C) 2023 by Federica Lareno Faccini
+% Copyright (C) 2019-2025 Ralitsa Todorova & (C) 2023 by Federica Lareno Faccini
 %
 % This program is free software; you can redistribute it and/or modify
 % it under the terms of the GNU General Public License as published by
@@ -62,6 +64,7 @@ pieceSize = 0.02;
 mode = 'discard';
 extend = false;
 nPieces = [];
+step = 0;
 
 for i = 1:2:length(varargin)
     if ~ischar(varargin{i})
@@ -72,6 +75,11 @@ for i = 1:2:length(varargin)
             pieceSize = varargin{i+1};
             if ~isvector(pieceSize) || length(pieceSize) ~= 1
                 error('Incorrect value for property ''pieceSize'' (type ''help <a href="matlab:help SplitIntervals">SplitIntervals</a>'' for details).');
+            end
+        case 'step'
+            step = varargin{i+1};
+            if ~isvector(step) || length(step) ~= 1
+                error('Incorrect value for property ''step'' (type ''help <a href="matlab:help SplitIntervals">SplitIntervals</a>'' for details).');
             end
         case 'mode'
             mode = lower(varargin{i+1});
@@ -114,39 +122,34 @@ end
 %% Split intervals into pieces of equal durations (pieceSize)
 
 d = diff(intervals,[],2);
+
+if step==0, step = pieceSize; end 
+
+bins = 0:step:max(d);
+bins = bins(:);
+bins = [bins bins+pieceSize];
+pieces = repmat(bins,size(intervals,1),1);
+ids = repelem((1:size(intervals,1))',size(bins,1));
+add = intervals(ids,1);
+pieces = pieces+repmat(add,1,2);
+
+% remove bins outside of the intervals:
 switch mode
     case 'discard'
-        piecesPerInterval = floor(d./pieceSize);
+        % keep pieces that end before/at the time the interval ends
+        ok = pieces(:,2)<=intervals(ids,2);
     case 'keep'
-        piecesPerInterval = ceil(d./pieceSize);
+        % keep pieces that starts before the interval has ended
+        ok = pieces(:,1)<intervals(ids,2);
     case 'round'
-        piecesPerInterval = round(d./pieceSize);
+        % keep pieces that are (at least up to 50%) contained within
+        % the intervals
+        ok = mean(pieces,2)<intervals(ids,2);
 end
-if ~any(piecesPerInterval>0), pieces = zeros(0,2); ids = zeros(0,1); return; end
-indicesNotEmpty = find(piecesPerInterval>0); try indicesNotEmpty(end+1) = indicesNotEmpty(end); end
-firstPiecePosition = CumSum([1;piecesPerInterval(1:end-1)]);
-% create the pieces by filling in the interval starts in their respective positions
-pieces = zeros(sum(piecesPerInterval),1);
-pieces(firstPiecePosition,1) = intervals(:,1);
-reset = pieces>0; reset(1)=1;
-time2add = ones(size(pieces))*pieceSize;
-time2add = CumSum(time2add,reset) - pieceSize; %reset at new bin starts and make sure baseline is 0
-ids = CumSum(reset);
-if pieceSize<1, time2add = round(time2add/pieceSize)*pieceSize; end %fix underflow errers: time2add should be divisible by pieceSize
-pieces = CumSum(pieces,reset) + time2add; %repeat first pieces for the duration of the interval
-pieces(:,2) = pieces(:,1)+pieceSize;
+pieces(~ok,:) = []; ids(~ok,:) = [];
+
 if any(strcmpi(mode,{'keep','round'})) && ~extend
     overflow = pieces(:,2)>intervals(ids,2);
     pieces(overflow,2) = intervals(ids(overflow),2);
 end
-
-try
-    ids = indicesNotEmpty(ids);
-catch
-    warning('There is an issue with the indices. Check results manually');
-end
-
-
-end
-
 
