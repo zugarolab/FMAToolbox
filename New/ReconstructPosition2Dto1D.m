@@ -1,4 +1,4 @@
-function [errors,average,estimations,actual,headingAngle] = ReconstructPosition2Dto1D(positions,spikes,windows,varargin)
+function [errors,average,estimations,actual,headingAngle,errors2D] = ReconstructPosition2Dto1D(positions,spikes,windows,varargin)
 
 % Bayesian reconstruction of positions from spike trains.
 %
@@ -353,15 +353,18 @@ d = future - past;
 headingAngle = atan2(d(:,1),d(:,2));
 bad = isnan(headingAngle) | any(isnan(actual),2);
 errors = nan(size(estimations,2:3));
+errors2D = nan(size(estimations));
 
 mask = abs((1:nBinsPerDim(end))-mean([1 nBinsPerDim(end)]))<distanceThreshold;
 if strcmp(normalize,'on'), fun = @(x) x./sum(x); else fun = @(x) x; end
+
 for i=1:size(actual,1) 
     if bad(i), continue; end
     q = translateMatrix(estimations(:,:,i),ceil(-actual(i,[2 1]).*nBinsPerDim + nBinsPerDim/2)); q(q==0) = nan;
     q = rotateMatrix(q,headingAngle(i)); q(q==0) = nan;
-    q(isnan(q(:))) = (1-nansum(q(:)))./sum(isnan(q(:))); 
-    q = q(mask,:); 
+    q(isnan(q(:))) = (1-nansum(q(:)))./sum(isnan(q(:)));  
+    errors2D(:,:,i) = q;
+    q = q(mask,:);
     errors(:,i) = fun(nansum(q));  
 end
 
