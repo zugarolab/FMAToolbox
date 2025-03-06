@@ -192,7 +192,7 @@ trainingSpikes = Restrict(spikes,training,'shift','on');
 
 % Apply minSpikes threshold to ignore units with very few spikes (which
 % would lead to noisy estimates of lambda)
-nSpikes = Accumulate(trainingSpikes(:,2));
+nSpikes = Accumulate(trainingSpikes(:,2),1,'size',max(id));
 tooFew = nSpikes<minSpikes;
 
 % Compute average firing probability lambda for each unit (i.e. firing maps)
@@ -234,7 +234,8 @@ end
 
 % In rare cases there may be a neuron that didn't fire at all during training.
 % This results in multiplying/dividing by zero, so they should be ignored
-silent = sum(lambda)==0 | tooFew'; 
+silent = sum(lambda)==0 | tooFew';
+
 spikecount(silent,:) = [];
 lambda(:,silent) = [];
 
@@ -378,7 +379,7 @@ end
 
 if isempty(intervalID)
     intervalID = ones(nWindows,1);
-    warning('No id-s provided. Average error computed for all bins');
+%     warning('No id-s provided. Average error computed for all bins');
 end
 
 average = cell(max(intervalID),1);
@@ -387,8 +388,13 @@ for i=1:max(intervalID)
 end
 average = cat(nDimensions+1,average{:});
 
+if any(silent) && nargout>4
+    l = lambda;
+    lambda = nan(size(lambda,1),length(silent));
+    lambda(:,~silent) = l;
 end
 
+end
 % ------------------------------- Helper functions -------------------------------
 
 function data = logfactorial(data)
