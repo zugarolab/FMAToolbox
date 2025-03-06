@@ -69,6 +69,7 @@ c = nan;
 shuffle = 'column';
 if nargout>7, wcorr = 'on'; else, wcorr = 'off'; end
 if nargout>9, jumps = 'on'; else, jumps = 'off'; end
+if nargout>11, quadrant = 'on'; else, quadrant = 'off'; end
 circular = 'off';
 threshold = 15;
 
@@ -216,16 +217,17 @@ if strcmp(jumps,'on'),
     end
 end
 
-[nBins,nPieces] = size(matrix);
-spatialBinID = (1:nBins)'/nBins; temporalBinID = linspace(0,1,nPieces);
-underestimating = spatialBinID>0.375 & spatialBinID<0.5; overestimating = spatialBinID>0.5 & spatialBinID<0.625;
-earlyPhase = temporalBinID>=0.2 & temporalBinID<0.5; latePhase = temporalBinID>0.5 & temporalBinID<=0.8;
-Qok = false(size(matrix)); Qok(underestimating,earlyPhase) = true; Qok(overestimating,latePhase) = true;
-Qcontrol = false(nBins,nPieces); Qcontrol(underestimating,latePhase) = true; Qcontrol(overestimating,earlyPhase) = true;
-score = nanmean(nanmean(matrix(Qok)));
-score(2) = nanmean(nanmean(matrix(Qcontrol)));
-quadrantScore = (score(1)-score(2))./sum(score,2);
-
+if strcmp(quadrant,'on')
+    [nBins,nPieces] = size(matrix);
+    spatialBinID = (1:nBins)'/nBins; temporalBinID = linspace(0,1,nPieces);
+    underestimating = spatialBinID>0.375 & spatialBinID<0.5; overestimating = spatialBinID>0.5 & spatialBinID<0.625;
+    earlyPhase = temporalBinID>=0.2 & temporalBinID<0.5; latePhase = temporalBinID>0.5 & temporalBinID<=0.8;
+    Qok = false(size(matrix)); Qok(underestimating,earlyPhase) = true; Qok(overestimating,latePhase) = true;
+    Qcontrol = false(nBins,nPieces); Qcontrol(underestimating,latePhase) = true; Qcontrol(overestimating,earlyPhase) = true;
+    score = nanmean(nanmean(matrix(Qok)));
+    score(2) = nanmean(nanmean(matrix(Qcontrol)));
+    quadrantScore = (score(1)-score(2))./sum(score,2);
+end
 %% Shuffle to get a p-value
 
 if nShuffles==0
@@ -238,9 +240,9 @@ if strcmp(shuffle,'column')
         mockSums = CircularShift(sums,shift);
         [rShuffled(i),ind] = max(mean(mockSums(indices),2));
         aShuffled(i) = a(ind); bShuffled(i) = b(ind);
-        if strcmp(wcorr,'on') || strcmp(jumps,'ok') || strcmp(quandrant,'on')
+        if strcmp(wcorr,'on') || strcmp(jumps,'ok') || strcmp(quadrant,'on')
             mockMatrix = CircularShift(matrix,shift);
-            if strcmp(wcorr,'on') || strcmp(quandrant,'on')
+            if strcmp(wcorr,'on') || strcmp(quadrant,'on')
                 if strcmp(circular,'on'),
                     cShuffled(i) = WeightedCorrCirc(mockMatrix);
                 else
