@@ -306,7 +306,7 @@ else
     xx = repmat(x',1,length(y));
     yy = repmat(y,length(x),1);
     if exist('scatteredInterpolant') == 2,
-        F = scatteredInterpolant(xx(d==0),yy(d==0),z(d==0));
+        F = scatteredInterpolant(xx(d==0),yy(d==0),z(d==0),'linear','nearest');
         zint = F(xx,yy);
     else
         if any(imag(z(:))),
