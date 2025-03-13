@@ -31,6 +31,7 @@ function [ccg,t,tau,c] = CCG(times,id,varargin)
 %     'alpha'       significance level to determine correlated pairs
 %     'totalTime'   total recording duration in s (if different from the
 %                   default = max(times) - min(times))
+%     'Fs'          sampling rate (default = 20000 Hz)
 %     'norm'        normalization of the CCG, 'counts' or 'rate'
 %                   'counts' gives raw event/spike count,
 %                   'rate' returns CCG in units of spks/second (default: counts)
@@ -93,7 +94,6 @@ function [ccg,t,tau,c] = CCG(times,id,varargin)
 % the Free Software Foundation; either version 3 of the License, or
 % (at your option) any later version.
 
-
 % Default values
 d = 2;
 duration = [];
@@ -105,6 +105,7 @@ mode = 'ccg';
 alpha = 0.05;
 IDrange=[];
 normtype = 'counts';
+Fs = 1/20000;
 
 % Option for spike times to be in {Ncells} array of spiketimes DL2017
 if iscell(times)
@@ -194,11 +195,13 @@ for i = 1:2:length(varargin),
             if isempty(groups) && numel(IDrange) ~= 2,
                 error('Incorrect value for property ''range'' (expected two elements). Type ''help <a href="matlab:help CCG">CCG</a>'' for details.')
             end
-        case 'normtype',
+        case {'norm','normtype'}
             normtype = varargin{i+1};
-            if ~isastring(mode,'counts','rate'),
+            if ~isastring(normtype,'counts','rate'),
                 error('Incorrect value for property ''normtype'' (type ''help <a href="matlab:help CCG">CCG</a>'' for details).');
             end
+        case 'fs',
+            % ignore, but prevent error to allow compatibility with CellExplorer
         otherwise,
             error(['Unknown property ''' num2str(varargin{i}) ''' (type ''help <a href="matlab:help CCG">CCG</a>'' for details).']);
 	end
@@ -243,14 +246,22 @@ if ~isempty(groups),
 end
 
 if length(times) <= 1,
-    ccg = uint16(zeros(nBins,nIDs,nIDs));
+    ccg = zeros(nBins,nIDs,nIDs);
     return
 end
 
-counts = double(CCGEngine(round(times/Fs),id,round(binSize/Fs),uint32(halfBins))); % EWS, 1/2/2014: Use unsigned integer format to save memory ***
-
-if n < nIDs
-	counts(nBins,nIDs,nIDs) = 0;
+try
+    counts = double(CCGEngine(times,id,binSize,halfBins));
+catch
+    problem = true; count = 1;
+    while problem
+        count = count+1;
+        if count>length(times), error('Need to fix CCGEngine'); end
+        try
+            x = ([count:length(times)]); counts = double(CCGEngine(times(x),id(x),binSize,halfBins));
+            problem = false;
+        end
+    end
 end
 
 % Reshape the results
