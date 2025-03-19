@@ -130,6 +130,10 @@ bins = bins(:);
 bins = [bins bins+pieceSize];
 pieces = repmat(bins,size(intervals,1),1);
 ids = repelem((1:size(intervals,1))',size(bins,1));
+if size(intervals,1) == 1 %rotate the vector when there is only 1 interval provided
+    ids = ids';
+end
+
 add = intervals(ids,1);
 pieces = pieces+repmat(add,1,2);
 
