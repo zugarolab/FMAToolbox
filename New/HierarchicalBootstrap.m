@@ -1,4 +1,4 @@
-function [p,means] = HierarchicalBootstrap(data,varargin)
+function [means,p] = HierarchicalBootstrap(data,varargin)
 
 % HierarchicalBootstrap:
 %
@@ -15,7 +15,7 @@ function [p,means] = HierarchicalBootstrap(data,varargin)
 %
 %  USAGE
 %
-%    [p,means] = HierarchicalBootstrap(data)
+%    [means,p] = HierarchicalBootstrap(data)
 %
 %    data           The expected format is long format, with the first 'nColumns'
 %                   columns being the values to be tested, and subsequent
@@ -30,21 +30,32 @@ function [p,means] = HierarchicalBootstrap(data,varargin)
 %                   (default = 1000)
 %     'fun'         the function handle of the function computing the average
 %                   value per condition (default = @mean)
+%     'groups'      Boolean indicating if the last column of "data" refers to
+%                   the condition of interest (default = true). When true,
+%                   the function treats the last column as the condition,
+%                   bootstrapping the mean separately for each condition
+%                   while using the preceding columns as grouping
+%                   variables. Set to false if all data comes from a single
+%                   condition, in which case the function will assumes the last
+%                   column is the highest-level grouping variable rather
+%                   than a condition.    
 %    =========================================================================
 %
 %  OUTPUT
 %
-%    p              p-value of the test that the values of condition 1 are
-%                   higher than the values of condition 2 after controlling
-%                   for the other nesting variables
 %    means          bootstrapped results for the mean of each condition (one for
 %                   each iteration)
-%
+%    p              In the special case when two conditions are provided, the
+%                   p-value of the test that the values of condition 1 are
+%                   higher than the values of condition 2 after controlling
+%                   for the other nesting variables. When the number of
+%                   conditions provided is not 2, the p-value will instead
+%                   compare each of the bootstapped means to zero. 
 %
 % EXAMPLE
 %
 % data = [fieldSize, cellID, session, animal, condition]
-% [p,means] = HierarchicalBootstrap(data);
+% [means,p] = HierarchicalBootstrap(data);
 % "p<0.05" indicates that the fieldSizes of condition 1 are significantly
 % higher than the fieldSizes of condition 2, after controlling for
 % cellID, session, and animal.
@@ -70,13 +81,14 @@ end
 nIterations = 1000;
 average = @nanmean; % change to nanmedian for testing if the group medians are different
 nColumns = 1;
+grouped = true;
 
 % Parse parameters
-for i = 1:2:length(varargin),
-    if ~ischar(varargin{i}),
+for i = 1:2:length(varargin)
+    if ~ischar(varargin{i})
         builtin('error',['Parameter ' num2str(i+2) ' is not a property (type ''help <a href="matlab:help HierarchicalBootstrap">HierarchicalBootstrap</a>'' for details).']);
     end
-    switch(lower(varargin{i})),
+    switch(lower(varargin{i}))
         case {'niterations','nshuffles','n'}
             nIterations = varargin{i+1};
             if ~(isscalar(nIterations) && (nIterations>0))
@@ -92,7 +104,15 @@ for i = 1:2:length(varargin),
             if ~(isscalar(nColumns) && (nColumns>0) && nColumns<size(data,2)-1)
                 builtin('error',['Incorrect value for property ''' varargin{i} ''' (type ''help <a href="matlab:help HierarchicalBootstrap">HierarchicalBootstrap</a>'' for details).']);
             end
-        otherwise,
+        case {'groups','group','grouped'}
+            grouped = varargin{i+1};
+            if isastring(lower(grouped),'on','off')
+                grouped = strcmpi(grouped,'on'); % transform to logical
+            end
+            if ~(islogical(grouped) && length(grouped)==1)
+                builtin('error',['Incorrect value for property ''' varargin{i} ''' (type ''help <a href="matlab:help HierarchicalBootstrap">HierarchicalBootstrap</a>'' for details).']);
+            end
+        otherwise
             builtin('error',['Unknown property ''' num2str(varargin{i}) ''' (type ''help <a href="matlab:help HierarchicalBootstrap">HierarchicalBootstrap</a>'' for details).']);
     end
 end
@@ -101,6 +121,11 @@ end
 for k=2:size(data,2)-1
     [~,~,data(:,k)] = unique(data(:,k));
 end
+
+if ~grouped % "data" does not contain a condition column
+    data(:,end+1) = 1; % add a "condition" in the last column of data.
+end
+
 nGroups = max(data(:,end));
 
 means = nan(nIterations,nGroups);
@@ -149,5 +174,10 @@ for k=1:nIterations,
     end
 end
 
-p = mean(means(:,1)<means(:,2));
+if size(means,2)==2
+    p = mean(means(:,1)<means(:,2));
+else
+    p = mean(means<0);
+end
+
 
