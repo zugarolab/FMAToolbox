@@ -15,6 +15,8 @@ function derivative = Diff(samples,varargin)
 %     'type'        'linear' if samples are linear values (default),
 %                   'circular' otherwise
 %     'smooth'      standard deviation for Gaussian kernel (default = 0)
+%     'ignorenan'   set to 'on' to ignore nans and force the smooth.
+%                   (default 'off')
 %    =========================================================================
 %
 %  SEE
@@ -32,6 +34,7 @@ function derivative = Diff(samples,varargin)
 % Defaults
 type = 'linear';
 smooth = 0;
+ignorenan = 'off';
 
 if nargin < 1,
   error('Incorrect number of parameters (type ''help <a href="matlab:help Diff">Diff</a>'' for details).');
@@ -56,6 +59,11 @@ for j = 1:2:length(varargin),
 			smooth = varargin{j+1};
 			if ~isdvector(smooth,'>=0') || length(smooth) > 2,
 				error('Incorrect value for property ''smooth'' (type ''help <a href="matlab:help Diff">Diff</a>'' for details).');
+            end
+        case 'ignorenan',
+			ignorenan = varargin{j+1};
+			if ~isastring(ignorenan,'on','off'),
+				error('Incorrect value for property ''ignorenan'' (type ''help <a href="matlab:help Diff">Diff</a>'' for details).');
 			end
 		otherwise,
 			error(['Unknown property ''' num2str(varargin{j}) ''' (type ''help <a href="matlab:help Diff">Diff</a>'' for details).']);
@@ -72,7 +80,7 @@ if smooth ~= 0,
 	if length(samples(1,2:end)) >= 2,
 		smooth = [smooth 0];
 	end
-	samples(:,2:end) = Smooth(samples(:,2:end),smooth);
+	samples(:,2:end) = Smooth(samples(:,2:end),smooth,'nans',ignorenan);
 end
 
 % Differentiate

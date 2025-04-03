@@ -22,7 +22,10 @@ function smoothed = Smooth(data,smooth,varargin)
 %                   - for 1D data, only one letter is used (default 'll')
 %     'kernel'      either 'gaussian' (default), 'rectangular' (running
 %                   average), or 'triangular' (weighted running average)
-%     'nans'        set to 'on' to ignore nans and force the smooth 
+%     'nans'        set to 'on' to ignore nans and force the smooth.
+%                   Please note that if data is a matrix and there are
+%                   isolated NaN values (not a full row/column), they will
+%                   not be removed and will thus influence the smoothing
 %                   (default = 'off')
 %    =========================================================================
 %
@@ -91,10 +94,17 @@ for i = 1:2:length(varargin),
   end
 end
 
-if strcmp(ignoreNans,'on') && vector && any(isnan(data)),
+if strcmp(ignoreNans,'on') & any(isnan(data)),
     smoothed = data;
     nans = isnan(data);
-    data(nans) = [];
+    if vector,
+        data(nans) = [];
+    elseif matrix,
+        cols = all(nans,1); rows = all(nans,2); % find rows and cols with all nans and remove them
+        data(:,cols) = []; data(rows,:) = [];
+        if any(isnan(data),'all'), warning('Isolated NaN value(s) identified, they have not been removed and will thus affect the smoothing'); end
+    end
+    
     smoothed(~nans) = Smooth(data, smooth, varargin{:});
     if transpose, smoothed = smoothed'; end
     return

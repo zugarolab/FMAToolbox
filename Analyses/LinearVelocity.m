@@ -22,6 +22,8 @@ function V = LinearVelocity(X,smooth, varargin)
 %                   or handle them as contiguous points ('off', default).
 %     'maxGap'      if a time gap between data points exceeds this threshold,
 %                   the data is split in chunks and processed separately (in s, default 60)
+%     'ignorenan'   set to 'on' to ignore nans and force the smooth.
+%                   (default 'off')
 %    =========================================================================
 %  
 %
@@ -51,6 +53,7 @@ end
 maxGap = 60;
 split = 'off';
 splitIndx = [1 size(X,1)];
+ignorenan = 'off';
 
 
 % Parse options
@@ -68,7 +71,12 @@ for i = 1:2:length(varargin),
 		split = varargin{i+1};
 		if ~isastring(split,'on','off'),
 			error('Incorrect value for property ''split'' (type ''help LinearVelocity'' for details).');
-		end
+        end
+        case 'ignorenan',
+			ignorenan = varargin{i+1};
+			if ~isastring(ignorenan,'on','off'),
+				error('Incorrect value for property ''ignorenan'' (type ''help <a href="matlab:help LinearVelocity">LinearVelocity</a>'' for details).');
+			end
 	otherwise,
 		error(['Unknown property ''' num2str(varargin{i}) ''' (type ''help LinearVelocity'' for details).']);
 	end
@@ -94,7 +102,7 @@ end
 
 V = [];
 for i = 1:size(splitIndx,1)
-    DX = Diff(X(splitIndx(i,1):splitIndx(i,2),:),'smooth',smooth);
+    DX = Diff(X(splitIndx(i,1):splitIndx(i,2),:),'smooth',smooth,'ignorenan',ignorenan);
     Y = DX(:,2:3).*DX(:,2:3);
     N = sqrt(Y(:,1)+Y(:,2));
     V = [V; [X(splitIndx(i,1):splitIndx(i,2),1) N]];
