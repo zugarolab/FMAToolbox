@@ -273,9 +273,15 @@ variance = var(n*weights)/nUnits; % the total variance of the activity matrix "n
 weights = weights(:,order);
 templates = zeros(nUnits,nUnits,size(weights,2));
 for i = 1:size(weights,2)
-    templates(:,:,i) = weights(:,i)*weights(:,i)';
-    templates(:,:,i) = templates(:,:,i) - diag(diag(templates(:,:,i))); % remove the diagonal
+    template = weights(:,i)*weights(:,i)';
+    template = template - diag(diag(template)); % remove the diagonal
+    if ~isempty(group) && exist('sameGroup','var') % Cross-correlation between two groups
+        % In this case, ignore within-group correlations
+        template(sameGroup) = 0;
+    end
+    templates(:,:,i) = template;
 end
+
 
 % ------------------------------- Helper functions -------------------------------
 
