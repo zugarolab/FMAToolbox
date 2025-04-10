@@ -39,6 +39,9 @@ function [estimations,actual,errors,average,lambda] = ReconstructPosition(positi
 %                   (default = 'on'). If positions data is not continuous (i.e.
 %                   there are discontinuities), set to 'off' to take the position
 %                   value closest in time without interpolating.
+%     'lambda'      Give a previously computed lambda and avoid training
+%                   the model on the place fields. 'training' will be
+%                   ignored if this input is provided.
 %     'id'          bin number for each window, used to compute the avarage
 %                   error (for example, phases for each window, to compute the
 %                   average error by phase). This should be a vector with one
@@ -116,18 +119,23 @@ for i = 1:2:length(varargin)
             end
         case 'smooth'
             smooth = varargin{i+1};
-            if ~isdvector(smooth,'>=0') || length(smooth) > 2,
+            if ~isdvector(smooth,'>=0') || length(smooth) > 2
                 builtin('error',['Incorrect value for property ''' varargin{i} ''' (type ''help <a href="matlab:help ReconstructPosition">ReconstructPosition</a>'' for details).']);
             end
         case 'prior'
             prior = varargin{i+1};
             if ~isastring(prior,'on','off')
-                error('Incorrect value for property ''prior'' (type ''help <a href="matlab:help ReconstructPosition">ReconstructPosition</a>'' for details).');
+                error(['Incorrect value for property ''' varargin{i} ''' (type ''help <a href="matlab:help ReconstructPosition">ReconstructPosition</a>'' for details).']);
+            end
+        case 'lambda'
+            lambda = varargin{i+1};
+            if ~ismatrix(lambda) || any(lambda(:)<0)
+                error(['Incorrect value for property ''' varargin{i} ''' (type ''help <a href="matlab:help ReconstructPosition">ReconstructPosition</a>'' for details).']);
             end
         case 'interpolate'
             interpolate = varargin{i+1};
             if ~isastring(interpolate,'on','off')
-                error('Incorrect value for property ''prior'' (type ''help <a href="matlab:help ReconstructPosition">ReconstructPosition</a>'' for details).');
+                error(['Incorrect value for property ''' varargin{i} ''' (type ''help <a href="matlab:help ReconstructPosition">ReconstructPosition</a>'' for details).']);
             end
         case 'id'
             intervalID = varargin{i+1};
@@ -152,8 +160,6 @@ for i = 1:2:length(varargin)
             builtin('error',['Property ''' varargin{i} ''' no longer supported (type ''help <a href="matlab:help ReconstructPosition">ReconstructPosition</a>'' for details).']);
         case 'mode'
             builtin('error',['Property ''' varargin{i} ''' no longer supported (type ''help <a href="matlab:help ReconstructPosition">ReconstructPosition</a>'' for details).']);
-        case 'lambda'
-            builtin('error',['Property ''' varargin{i} ''' no longer supported (type ''help <a href="matlab:help ReconstructPosition">ReconstructPosition</a>'' for details).']);
         case 'px'
             builtin('error',['Property ''' varargin{i} ''' no longer supported (type ''help <a href="matlab:help ReconstructPosition">ReconstructPosition</a>'' for details).']);
         otherwise
@@ -166,10 +172,7 @@ positions = sortrows(positions);
 ignore = diff(positions(:,1))<=0;
 positions(ignore,:) = [];
 
-% Defaults (training)
-if isdscalar(training) %If 'training' was provided as a portion, convert it to an interval
-    training = [0 positions(1,1)+training*(positions(end,1)-positions(1,1))];
-end
+
 
 % Convert from legacy format for backward compatibility with previous versions of the code (spikes)
 if isdmatrix(spikes,'@3')
@@ -187,35 +190,62 @@ else
 end
 %% TRAINING
 
-trainingPositions = Restrict(positions,training,'shift','on');
-trainingSpikes = Restrict(spikes,training,'shift','on');
-
-% Apply minSpikes threshold to ignore units with very few spikes (which
-% would lead to noisy estimates of lambda)
-nSpikes = Accumulate(trainingSpikes(:,2),1,'size',max(id));
-tooFew = nSpikes<minSpikes;
-
-% Compute average firing probability lambda for each unit (i.e. firing maps)
-lambda = nan(prod(nBins),nUnits);
-for i = 1:nUnits
-    unit = trainingSpikes(:,2) == i;
-    s = trainingSpikes(unit,1);
-    if size(trainingPositions,2)<3
-        map = Map(trainingPositions,s,'nbins',nBins,'smooth',smooth,'type',[type 'l']);
-        % extra letter for 'type' required as input for 'Map' even though this extra 'l' does not refer to anything in the case of a point process (spikes) provided
-        map.z = map.z';
-    else
-        map = Map(trainingPositions,s,'nbins',nBins,'smooth',smooth,'type',type);
+if exist('lambda','var')
+    if size(lambda,1) ~= nBins || size(lambda,2)~=nUnits,
+        error('Wrong size for input ''lambda''. Aborting...');
     end
-    lambda(:,i) = map.z(:); % squeeze space dimensions to 1
-    lambda(:,i) = lambda(:,i) +eps;
+    tooFew = nansum(lambda)'==0;
+else
+    % Defaults (training)
+    if isdscalar(training) %If 'training' was provided as a portion, convert it to an interval
+        training = [0 positions(1,1)+training*(positions(end,1)-positions(1,1))];
+    end
+    
+    trainingPositions = Restrict(positions,training,'shift','on');
+    trainingSpikes = Restrict(spikes,training,'shift','on');
+    
+    % Apply minSpikes threshold to ignore units with very few spikes (which
+    % would lead to noisy estimates of lambda)
+    nSpikes = Accumulate(trainingSpikes(:,2),1,'size',max(id));
+    tooFew = nSpikes<minSpikes;
+    
+    % Compute average firing probability lambda for each unit (i.e. firing maps)
+    lambda = nan(prod(nBins),nUnits);
+    for i = 1:nUnits
+        unit = trainingSpikes(:,2) == i;
+        s = trainingSpikes(unit,1);
+        if size(trainingPositions,2)<3
+            map = Map(trainingPositions,s,'nbins',nBins,'smooth',smooth,'type',[type 'l']);
+            % extra letter for 'type' required as input for 'Map' even though this extra 'l' does not refer to anything in the case of a point process (spikes) provided
+            map.z = map.z';
+        else
+            map = Map(trainingPositions,s,'nbins',nBins,'smooth',smooth,'type',type);
+        end
+        try
+        lambda(:,i) = map.z(:); % squeeze space dimensions to 1
+        catch
+                    keyboard
+        end
+        lambda(:,i) = lambda(:,i) +eps;
+    end
 end
 
-% Compute occupancy probability P(x) (i.e. normalized occupancy map)
-Px = map.time(:);
-Px = Px ./ sum(Px);
 if strcmp(prior,'off')
-    Px(:) = 1/numel(Px); % set a uniform prior
+    Px = ones(prod(nBins),1)/prod(nBins); % set a uniform prior
+else
+    if exist('map','var')
+        % Compute occupancy probability P(x) (i.e. normalized occupancy map)
+        Px = map.time(:);
+    else
+        % Defaults (training)
+        if isdscalar(training) %If 'training' was provided as a portion, convert it to an interval
+            training = [0 positions(1,1)+training*(positions(end,1)-positions(1,1))];
+        end
+        trainingPositions = Restrict(positions,training,'shift','on');
+        map = Map(trainingPositions,spikes(:,1),'nbins',nBins,'smooth',smooth,'type',[type 'l']);
+        Px = map.time(:);
+        Px = Px ./ sum(Px);
+    end
 end
 
 % We are squeezing the spatial dimensions into one dimension of binsize nBins:
