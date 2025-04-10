@@ -1,4 +1,4 @@
-function H = RasterPlot(spikes, height, varargin)
+function handle = RasterPlot(spikes, height, varargin)
 
 %RasterPlot - create raster plot from spike times and IDs
 %
@@ -23,5 +23,4 @@ rows = spikes(:,2);
 times = [times times nan(size(times))]';
 rows =  [rows-0.45*height rows+0.45*height nan(size(rows))]';
 
-H = figure();
-plot(times(:),rows(:),varargin{:});
+handle = plot(times(:),rows(:),varargin{:});
