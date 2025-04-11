@@ -143,7 +143,7 @@
 		{"name":"threshold", "kind":"namevalue", "type":"numeric"},
 		{"name":"cutoffs", "kind":"namevalue", "type":"numeric"},
 		{"name":"hgamma", "kind":"namevalue", "type":"numeric"},
-		{"name":"bar", "kind":"namevalue", "type":"choices={'on','off'}"},
+		{"name":"bar", "kind":"namevalue", "type":"choices={'on','off','<label>'}"},
 		{"name":"type", "kind":"namevalue", "type":"choices={'linear','circular'}"},
 		{"name":"ydir", "kind":"namevalue", "type":"choices={'normal','reverse'}"},
         {"name":"piecewise", "kind":"namevalue", "type":"choices={'on','off'}"}
@@ -188,12 +188,12 @@
 	"inputs":
 	[
 		{"name":"intervals", "kind":"required", "type":"numeric"},
-		{"name":"style", "kind":"namevalue", "type":"choices={'bars','rectangles'}"},
+		{"name":"style", "kind":"namevalue", "type":"choices={'bars','rectangles','axis'}"},
 		{"name":"direction", "kind":"namevalue", "type":"choices={'h','v'}"},
 		{"name":"color", "kind":"namevalue", "type":"numeric"},
 		{"name":"alpha", "kind":"namevalue", "type":"numeric"},
 		{"name":"ylim", "kind":"namevalue", "type":"numeric"},
-		{"name":"legend", "kind":"namevalue", "type":"choices={'on','off,}"},
+		{"name":"legend", "kind":"namevalue", "type":"choices={'on','off','<label>'}"},
 		{"name":"bottom", "kind":"namevalue", "type":"choices={'on','off'}"}
 	]
 },
