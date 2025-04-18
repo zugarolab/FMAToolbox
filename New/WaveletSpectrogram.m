@@ -1,4 +1,4 @@
-function [spectrogram,t,f] = WaveletSpectrogram(lfp,varargin)
+function [spectrogram,t,f,phase] = WaveletSpectrogram(lfp,varargin)
 
 %WaveletSpectrogram - Compute LFP wavelet spectrogram
 %
@@ -6,7 +6,7 @@ function [spectrogram,t,f] = WaveletSpectrogram(lfp,varargin)
 %
 %  USAGE
 %
-%    [spectrogram,t,f] = WaveletSpectrogram(lfp,<options>)
+%    [spectrogram,t,f,phase] = WaveletSpectrogram(lfp,<options>)
 %
 %    lfp            unfiltered LFP <a href="matlab:help samples">samples</a> (one channel).
 %    <options>      optional list of property-value pairs (see table below)
@@ -27,6 +27,7 @@ function [spectrogram,t,f] = WaveletSpectrogram(lfp,varargin)
 %    spectrogram    time-frequency matrix
 %    t              time bins
 %    f              frequency bins
+%    phase          instantaneous phase matrix
 %
 %  SEE
 %    See "http://paos.colorado.edu/research/wavelets/"
@@ -106,11 +107,21 @@ end
 power = flipud((abs(wave)).^2);        % compute wavelet power spectrum
 f0 = 1./flipud(scale(:));
 
+if nargout >3
+    phase = flipud(angle(wave));    % compute instantaneous phase
+end
+
 % Downsample to desired temporal resolution
 if ~isempty(step),
     t0 = t;
     t = (t0(1):step:t(end))';
     power = interp1(t0,power',t)';
+    
+    if nargout >3
+        angles = exp(1i*phase);
+        angles = interp1(t0,angles',t)';
+        phase = atan2(imag(angles),real(angles));
+    end
 end
 
 if interpolate
