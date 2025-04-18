@@ -59,10 +59,13 @@ safe = true;
 if nargin < 2 || mod(length(varargin),2) ~= 0,
   error('Incorrect number of parameters (type ''help <a href="matlab:help InIntervals">InIntervals</a>'' for details).');
 end
-
+    
 % Check parameters
 if ~isdmatrix(intervals) || size(intervals,2) ~= 2,
-  error('Incorrect intervals (type ''help <a href="matlab:help InIntervals">InIntervals</a>'' for details).');
+    if isempty(intervals), intervals = zeros(0,2);
+    else
+        error('Incorrect intervals (type ''help <a href="matlab:help InIntervals">InIntervals</a>'' for details).');
+    end
 end
 
 % Parse parameter list
@@ -93,6 +96,7 @@ if safe,
 	[values,order] = sortrows(values(:,1));
 end
 
+values = double(values); intervals = double(intervals); % prevent strange errors for large numbers with "singles" format
 % Max nb of digits for display
 if verbose, l = int2str(floor(log10(max(max(intervals*100))))+2); end
 

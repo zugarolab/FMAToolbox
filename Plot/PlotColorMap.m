@@ -20,7 +20,8 @@ function PlotColorMap(data,dimm,varargin)
 %     'threshold'   dimm values below this limit are zeroed (default = 0.01)
 %     'cutoffs'     lower and upper cutoff values ([] = autoscale, default)
 %     'hgamma'      gamma-like correction for hue (1 = no correction, default)
-%     'bar'         draw a color bar (default = 'off')
+%     'bar'         draw a color bar (default = 'off'); if value isn't
+%                   'on' it's used as label for the bar
 %     'type'        either 'linear' or 'circular' (default 'linear')
 %     'ydir'        either 'normal' (default) or 'reverse' (useful when the
 %                   x and y coordinates correspond to spatial positions,
@@ -37,13 +38,14 @@ function PlotColorMap(data,dimm,varargin)
 %  EXAMPLE
 %
 %    fm = FiringMap(positions,spikes);      % firing map for a place cell
-%    figure;PlotColorMap(fm.rate,fm.time);  % plot, dimming with occupancy map
+%    figure; PlotColorMap(fm.rate,fm.time);  % plot, dimming with occupancy map
 %
 %  SEE
 %
 %    See also FiringMap, PhaseMap, MTSpectrogram, PlotShortTimeCCG.
 
 % Copyright (C) 2004-2012 by Michaël Zugaro
+% (C) 2025 by Pietro Bozzo (graphics optimization)
 %
 % This program is free software; you can redistribute it and/or modify
 % it under the terms of the GNU General Public License as published by
@@ -56,10 +58,10 @@ hgamma = 1;
 gamma = 1;
 hg = 0;
 threshold = 0.01;
-drawBar = 0;
+drawBar = false;
 type = 'linear';
 [y,x] = size(data);
-x = 1:x;y = 1:y;
+x = 1:x; y = 1:y;
 ydir = 'normal';
 piecewise = true;
 
@@ -71,7 +73,7 @@ if nargin == 1
 	dimm = 1;
 end
 if isa(dimm,'char')
-	varargin = {dimm varargin{:}};
+	varargin = [dimm,varargin];
 	dimm = 1;
 end
 
@@ -114,8 +116,9 @@ for i = 1:2:length(varargin)
 				error('Incorrect value for deprecated property ''gamma'' (type ''help <a href="matlab:help PlotColorMap">PlotColorMap</a>'' for details).');
             end
 		case 'bar'
-			drawBar = lower(varargin{i+1});
-			if ~isastring(drawBar,'on','off')
+			barLabel = varargin{i+1};
+            drawBar = ~strcmpi(varargin{i+1},'off');
+			if ~isastring(barLabel)
 				error('Incorrect value for property ''bar'' (type ''help <a href="matlab:help PlotColorMap">PlotColorMap</a>'' for details).');
 			end
 		case 'type'
@@ -182,7 +185,8 @@ end
 
 % Color map and bar
 colormap(gca, Bright(100,'hgamma',hgamma,'type',type));
-if strcmp(drawBar,'on')
-	colorbar('vert','TickDirection','out','FontSize',12,'Color',[0,0,0],'Box','off','LineWidth',1.7);
+if drawBar
+	b = colorbar('vert','TickDirection','out','FontSize',12,'Color',[0,0,0],'Box','off','LineWidth',1.7);
+    if ~strcmpi(barLabel,'on'), b.Label.String = barLabel; end
 	set(f,'currentaxes',a);
 end
