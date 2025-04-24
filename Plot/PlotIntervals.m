@@ -132,25 +132,21 @@ if strcmp(style,'bars')
 		end
 	end
 elseif strcmp(style,'rectangles')
-    nPreexistingObjects = numel(gca().Children); % to use later to restore lines order in plot
+    handles = matlab.graphics.primitive.Patch.empty; % empty array of Patch objects to store handles
     for i = 1:size(intervals,1)
         if strcmp(direction,'v')
 			dx = intervals(i,2)-intervals(i,1);
 			dy = yLim(2)-yLim(1);
-            patch(intervals(i,1)+[0,0,dx,dx],yLim(1)+[0,dy,dy,0],color,'FaceAlpha',alpha,'LineStyle','none','HandleVisibility',legend);
+            handles(end+1) = patch(intervals(i,1)+[0,0,dx,dx],yLim(1)+[0,dy,dy,0],color,'FaceAlpha',alpha,'LineStyle','none','HandleVisibility',legend);
 		else
 			dx = xLim(2)-xLim(1);
 			dy = intervals(i,2)-intervals(i,1);
-            patch(xLim(1)+[0,0,dx,dx],intervals(i,1)+[0,dy,dy,0],color,'FaceAlpha',alpha,'LineStyle','none','HandleVisibility',legend);
+            handles(end+1) = patch(xLim(1)+[0,0,dx,dx],intervals(i,1)+[0,dy,dy,0],color,'FaceAlpha',alpha,'LineStyle','none','HandleVisibility',legend);
         end
     end
-    nObjects = numel(gca().Children);
-    nNewObjects = nObjects-nPreexistingObjects;
     % if rectangles were plotted and if requested, lower them to bottom
-    if nNewObjects>0 && strcmp(bottom,'on')
-        ax = gca;
-        order = [nNewObjects+1:nNewObjects+nPreexistingObjects,1:nNewObjects];
-        ax.Children = ax.Children(order);
+    if ~isempty(handles) && strcmp(bottom,'on')
+        uistack(handles,'bottom')
     end
 else
     % get current axis location
