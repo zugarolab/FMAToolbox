@@ -20,7 +20,7 @@ function PlotIntervals(intervals,varargin)
 %     'style'       'bars' for lines, 'rectangles' (default), or 'axis'
 %     'direction'   'h' for horizontal, or 'v' for vertical (default)
 %     'color'       rectangle color ('rectangles' mode, default = grey)
-%     'alpha'       rectangle transparency ('rectangles' mode, default = 1)
+%     'alpha'       rectangle transparency ('rectangles' mode, default = 0.5)
 %     'ylim'        desired y-coordinates of the plotted areas ('v' mode)
 %     'legend'      if 'off', plotted elements won't appear in legend
 %                   (default = 'on'); in 'axis' mode, value is also legend
