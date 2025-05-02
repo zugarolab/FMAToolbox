@@ -127,7 +127,7 @@ data.peakAmplitude = maps.amplitude(:,centerBin);
 data.duration = ripples(:,3)-ripples(:,1);
 
 % Autocorrelogram and correlations
-if nargin >= 3,
+if nargout >= 3
 	[stats.acg.data,stats.acg.t] = CCG(ripples(:,2),1,'binSize',corrBinSize,'nBins',nCorrBins);
 	[stats.amplitudeFrequency.rho,stats.amplitudeFrequency.p] = corrcoef(data.peakAmplitude,data.peakFrequency);
 	[stats.durationFrequency.rho,stats.durationFrequency.p] = corrcoef(data.duration,data.peakFrequency);
