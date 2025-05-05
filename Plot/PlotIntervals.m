@@ -23,12 +23,10 @@ function PlotIntervals(intervals,varargin)
 %     'alpha'       rectangle transparency ('rectangles' mode, default = 0.5)
 %     'ylim'        desired y-coordinates of the plotted areas ('v' mode)
 %     'legend'      if 'off', plotted elements won't appear in legend
-%                   (default = 'on'); in 'axis' mode, value is also legend
-%                   label if different from 'on'
+%                   (default = 'on'); value is also legend label if
+%                   different from 'on'
 %     'bottom'      if 'on' (default), lower plotted rectangles to bottom of
-%                   of visual stack ('rectangles' mode). Note that setting
-%                   this to 'off' is faster, so consider this (and PlotIntervals
-%                   before other plot funcitons) for large numbers of intervals.
+%                   of visual stack ('rectangles' mode)
 %                   
 %    =========================================================================
 %
@@ -47,7 +45,7 @@ alpha = 0.5;
 style = 'rectangles';
 direction = 'v';
 yLim = ylim;
-legend = 'on';
+legendValue = 'on';
 bottom = 'on';
 
 if nargin < 1
@@ -57,7 +55,7 @@ if size(intervals,2) ~= 2
   error('Incorrect list of intervals (type ''help <a href="matlab:help PlotIntervals">PlotIntervals</a>'' for details).');
 end
 
-% Backward compatibility: previous versions used the syntax PlotIntervals(intervals,style,direction)
+% Backwards compatibility: previous versions used the syntax PlotIntervals(intervals,style,direction)
 parsed = false;
 if (nargin == 2 || nargin == 3) && isastring(lower(varargin{1}),'bars','rectangles','axis')
     style = lower(varargin{1});
@@ -101,10 +99,10 @@ if ~parsed
                     error('Incorrect value for property ''yLim'' (type ''help <a href="matlab:help PlotIntervals">PlotIntervals</a>'' for details).');
                 end
             case 'legend'
-                legend = lower(varargin{i+1});
+                legendValue = lower(varargin{i+1});
             case 'bottom'
                 bottom = lower(varargin{i+1});
-                if islscalar(bottom), if bottom, bottom = 'on'; else, bottom = 'off'; end; end % accept boolean input for back compatibility
+                if islscalar(bottom), if bottom, bottom = 'on'; else, bottom = 'off'; end; end % accept boolean input for backwards compatibility
                 if ~isastring(bottom,'on','off')
                     error('Incorrect value for property ''bottom'' (type ''help <a href="matlab:help PlotIntervals">PlotIntervals</a>'' for details).');
                 end
@@ -114,8 +112,8 @@ if ~parsed
 	end
 end
 
-% validate legend value
-if ~isastring(style,'axis') && ~isastring(legend,'on','off')
+% Validate legend value
+if isastring(style,'bars') && ~isastring(legendValue,'on','off')
     error('Incorrect value for property ''legend'' (type ''help <a href="matlab:help PlotIntervals">PlotIntervals</a>'' for details).');
 end
 
@@ -124,30 +122,34 @@ xLim = xlim;
 if strcmp(style,'bars')
 	for i = 1:size(intervals,1)
 		if strcmp(direction,'v')
-			plot([intervals(i,1) intervals(i,1)],yLim,'Color',[0 0.75 0],'HandleVisibility',legend);
-			plot([intervals(i,2) intervals(i,2)],yLim,'Color',[0.9 0 0],'HandleVisibility',legend);
+			plot([intervals(i,1) intervals(i,1)],yLim,'Color',[0 0.75 0],'HandleVisibility',legendValue);
+			plot([intervals(i,2) intervals(i,2)],yLim,'Color',[0.9 0 0],'HandleVisibility',legendValue);
 		else
-			plot(xLim,[intervals(i,1) intervals(i,1)],'Color',[0 0.75 0],'HandleVisibility',legend);
-			plot(xLim,[intervals(i,2) intervals(i,2)],'Color',[0.9 0 0],'HandleVisibility',legend);
+			plot(xLim,[intervals(i,1) intervals(i,1)],'Color',[0 0.75 0],'HandleVisibility',legendValue);
+			plot(xLim,[intervals(i,2) intervals(i,2)],'Color',[0.9 0 0],'HandleVisibility',legendValue);
 		end
-	end
+    end
+
 elseif strcmp(style,'rectangles')
-    handles = matlab.graphics.primitive.Patch.empty; % empty array of Patch objects to store handles
-    for i = 1:size(intervals,1)
-        if strcmp(direction,'v')
-			dx = intervals(i,2)-intervals(i,1);
-			dy = yLim(2)-yLim(1);
-            handles(end+1) = patch(intervals(i,1)+[0,0,dx,dx],yLim(1)+[0,dy,dy,0],color,'FaceAlpha',alpha,'LineStyle','none','HandleVisibility',legend);
-		else
-			dx = xLim(2)-xLim(1);
-			dy = intervals(i,2)-intervals(i,1);
-            handles(end+1) = patch(xLim(1)+[0,0,dx,dx],intervals(i,1)+[0,dy,dy,0],color,'FaceAlpha',alpha,'LineStyle','none','HandleVisibility',legend);
-        end
+    if strcmp(direction,'v')
+        x_coord = intervals(:,[1,1,2,2]).';
+        y_coord = yLim(ones(size(intervals,1),1),[1,2,2,1]).';
+    else
+        x_coord = xLim(ones(size(intervals,1),1),[1,1,2,2]).';
+        y_coord = intervals(:,[1,2,2,1]).';
     end
-    % if rectangles were plotted and if requested, lower them to bottom
-    if ~isempty(handles) && strcmp(bottom,'on')
-        uistack(handles,'bottom')
+    h = patch(x_coord,y_coord,color,'FaceAlpha',alpha,'LineStyle','none');
+    if strcmp(legendValue,'off')
+        h.Annotation.LegendInformation.IconDisplayStyle = 'off';
+        legend(gca,'hide'); legend(gca,'show'); % refresh legend   
+    elseif ~strcmp(legendValue,'on')
+        h.DisplayName = legendValue;
     end
+    % if requested, lower rectangles to bottom of visual stack
+    if strcmp(bottom,'on')
+        uistack(h,'bottom')
+    end
+
 else
     % get current axis location
     ax = gca; fig = gcf;
@@ -182,8 +184,8 @@ else
         plot(bar_ax,ones(size(intervals(:)))*0.1,intervals(:),Color=color,LineWidth=4)
     end
     % add bars to legend
-    if ~strcmp(legend,'off') && ~strcmp(legend,'on')
-        plot(ax,nan,nan,Color=color,LineWidth=4,DisplayName=legend)
+    if ~strcmp(legendValue,'off') && ~strcmp(legendValue,'on')
+        plot(ax,nan,nan,Color=color,LineWidth=4,DisplayName=legendValue)
     end
     % reset current axes, also raising it to top of visual stack
     axes(ax)
