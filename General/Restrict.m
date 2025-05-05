@@ -33,7 +33,7 @@ function [samples, originalIndex, intervalID] = Restrict(samples,intervals,varar
 %    See also ConsolidateIntervals, SubtractIntervals, ExcludeIntervals,
 %    InIntervals, Restrict, FindInInterval, CountInIntervals, PlotIntervals.
 
-% Copyright (C) 2004-2011 by Michaël Zugaro
+% Copyright (C) 2004-2011 by Michaël Zugaro, 2025 Pietro Bozzo (vectorized algorithm)
 %
 % This program is free software; you can redistribute it and/or modify
 % it under the terms of the GNU General Public License as published by
@@ -46,64 +46,84 @@ transpose = false;
 try samples(isnan(samples(:,1)),:) = []; end
 
 % Check number of parameters
-if nargin < 2 | mod(length(varargin),2) ~= 0,
+if nargin < 2 || mod(length(varargin),2) ~= 0
   error('Incorrect number of parameters (type ''help <a href="matlab:help Restrict">Restrict</a>'' for details).');
 end
 
 % Check parameters
 intervals = double(intervals);
 samples = double(samples);
-if ~isdmatrix(intervals) || size(intervals,2) ~= 2,
+if ~isdmatrix(intervals) || size(intervals,2) ~= 2
   error('Incorrect intervals (type ''help <a href="matlab:help Restrict">Restrict</a>'' for details).');
 end
 
-if size(samples,1) == 1,
+if size(samples,1) == 1
 	samples = samples(:);
     transpose = true;
 end
 
 % Parse parameter list
-for i = 1:2:length(varargin),
-	if ~ischar(varargin{i}),
+for i = 1:2:length(varargin)
+	if ~ischar(varargin{i})
 		error(['Parameter ' num2str(i+2) ' is not a property (type ''help <a href="matlab:help Restrict">Restrict</a>'' for details).']);
 	end
-	switch(lower(varargin{i})),
-		case 'shift',
+	switch(lower(varargin{i}))
+		case 'shift'
 			shift = varargin{i+1};
-			if ~isastring(shift,'on','off'),
-				error('Incorrect value for property ''shift'' (type ''help <a href="matlab:help Restrict">Restrict</a>'' for details).');
+            if ~isastring(shift,'on','off')
+                error('Incorrect value for property ''shift'' (type ''help <a href="matlab:help Restrict">Restrict</a>'' for details).');
             end
-        otherwise,
+        otherwise
 			error(['Unknown property ''' num2str(varargin{i}) ''' (type ''help <a href="matlab:help Restrict">Restrict</a>'' for details).']);
 	end
 end
 
-% Restrict
-intervalID = []; originalIndex = []; 
-if ~isempty(samples)
-    [status,interval] = InIntervals(samples,intervals);
-    samples = samples(status,:);
-    intervalID = interval(status==1);
-    originalIndex = find(status==1);
-elseif isempty(samples)
+if isempty(samples)
     samples = [];
-    disp('No samples to restrict');
+    disp('No samples to restrict.');
+    return
+end
+
+% Restrict
+% prepare flattened interval array for faster vectorized algorithm
+flattenedIntervals = intervals.';
+% extend intervals by a small amount to compensate for vectorization, which
+% treats intervals as right-open, i.e., [t1,t2)
+deltaT = 10^5 * eps;
+interIntervalDistance = intervals(2:end,1) - intervals(1:end-1,2);
+flattenedIntervals(2,[interIntervalDistance > deltaT;true]) = flattenedIntervals(2,[interIntervalDistance > deltaT;true]) + deltaT;
+flattenedIntervals = flattenedIntervals(:);
+% check if faster algorithm can be used
+if all(flattenedIntervals(2:end) >= flattenedIntervals(1:end-1))
+    % assign and index to each sample time, only odd indeces belong to intervals
+    ind = discretize(samples(:,1),flattenedIntervals);
+    % identify samples to keep; status(i) == 1 iff samples(i,1) falls in an interval
+    status = mod(ind,2) == 1;
+    % get index of interval for every valid sample
+    if nargout > 2 || strcmp(shift,'on')
+        intervalID = (ind(status) + 1) / 2;
+    end
+else
+    % original algorithm
+    [status,interval] = InIntervals(samples,intervals);
+    intervalID = interval(status);
+end
+% restrict samples
+samples = samples(status,:);
+% get index of samples to keep in original samples
+if nargout > 1
+    originalIndex = find(status);
 end
 
 % Shift?
-if strcmp(shift,'on') && ~isempty(samples),
-    % Discard interval IDs for samples which belong to none of the intervals
-    interval = interval(status);
+if strcmp(shift,'on') && ~isempty(samples)
 	% Samples in each interval will be shifted next to end of the previous interval
-	% Let us call dt1 the time difference between interval 1 and interval 2. Interval 2 must be
-	% shifted by dt1, interval 3 by dt1+dt2 (since interval 2 itself will be shifted by dt1),
-	% interval 4 by dt1+dt2+dt3, etc.
-	% 1) Compute the cumulative shifts dt1, dt1+dt2, dt1+dt2+dt3,...
-	start = intervals(2:end,1); % beginning of next interval
-	stop = intervals(1:end-1,2); % end of previous interval
-	cumulativeShift = [0;cumsum(start-stop)];
-	% 2) Assign these cumulative shifts to each sample
-	shifts = cumulativeShift(interval);
+	% Let dti be the time difference between interval i and interval i+1,
+    % then interval n+1 must be shifted by sum_i from 1 to n of dti
+	% 1) Compute the cumulative shifts dt1, dt1+dt2, dt1+dt2+dt3, ... 
+	cumulativeShift = [0;cumsum(interIntervalDistance)];
+	% 2) Assign cumulative shifts to samples
+	shifts = cumulativeShift(intervalID);
 	% 3) Shift
 	samples(:,1) = samples(:,1) - shifts - intervals(1,1);
 end
