@@ -120,7 +120,7 @@ end
 hold on;
 xLim = xlim;
 if strcmp(style,'bars')
-	for i = 1:size(intervals,1)
+    for i = 1:size(intervals,1)
 		if strcmp(direction,'v')
 			plot([intervals(i,1) intervals(i,1)],yLim,'Color',[0 0.75 0],'HandleVisibility',legendValue);
 			plot([intervals(i,2) intervals(i,2)],yLim,'Color',[0.9 0 0],'HandleVisibility',legendValue);
@@ -141,7 +141,11 @@ elseif strcmp(style,'rectangles')
     h = patch(x_coord,y_coord,color,'FaceAlpha',alpha,'LineStyle','none');
     if strcmp(legendValue,'off')
         h.Annotation.LegendInformation.IconDisplayStyle = 'off';
-        legend(gca,'hide'); legend(gca,'show'); % refresh legend   
+        % if legend exists, refresh it to hide rectangles from it
+        h_legend = findobj(gcf,'Type','Legend');
+        if ~isempty(h_legend)
+            legend(gca,'hide'); legend(gca,'show');
+        end
     elseif ~strcmp(legendValue,'on')
         h.DisplayName = legendValue;
     end
