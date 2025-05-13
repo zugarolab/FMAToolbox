@@ -33,15 +33,19 @@ electrodeGroup = str2num(extension(2:end));
 % Load .res file
 filename = [path '/' basename '.res.' int2str(electrodeGroup)];
 if ~exist(filename,'file')
-	error('LoadSpikeTimes:missingRes',['File ''' filename ''' not found.']);
+	error('LoadSpikeTimes:MissingRes',['File ''' filename ''' not found.']);
 end
-res = load(filename);
+res = readmatrix(filename,FileType='text',CommentStyle='%');
 
 % Load .clu file
 filename = [path '/' basename '.clu.' int2str(electrodeGroup)];
 if ~exist(filename,'file')
-	error('LoadSpikeTimes:missingClu',['File ''' filename ''' not found.']);
+	error('LoadSpikeTimes:MissingClu',['File ''' filename ''' not found.']);
 end
-clu = load(filename);
+clu = readmatrix(filename,FileType='text',CommentStyle='%');
+
+if size(res,1) ~= size(clu,1)-1
+    error('LoadSpikeTimes:ResCluSize','Contents of .res and .clu files have incompatible size.');
+end
 
 times = [res/rate electrodeGroup*ones(size(res)) clu(2:end)];

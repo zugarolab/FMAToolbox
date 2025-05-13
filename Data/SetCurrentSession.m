@@ -37,35 +37,35 @@ verbose = 'on';
 filename = '';
 
 % Filename?
-if nargin ~= 0,
-	if ~isastring(varargin{1},'spikes'),
+if nargin ~= 0
+	if ~isastring(varargin{1},'spikes')
 		filename = varargin{1};
 		varargin = {varargin{2:end}};
 	end
 end
 
 % Check number of parameters
-if mod(length(varargin),2) ~= 0,
+if mod(length(varargin),2) ~= 0
   error('Incorrect number of parameters (type ''help <a href="matlab:help SetCurrentSession">SetCurrentSession</a>'' for details).');
 end
 
 % Parse parameter list
-for i = 1:2:length(varargin),
-	if ~ischar(varargin{i}),
+for i = 1:2:length(varargin)
+	if ~ischar(varargin{i})
 		error(['Parameter ' num2str(i+2) ' is not a property (type ''help <a href="matlab:help SetCurrentSession">SetCurrentSession</a>'' for details).']);
 	end
-	switch(lower(varargin{i})),
-		case 'verbose',
+	switch(lower(varargin{i}))
+		case 'verbose'
 			verbose = lower(varargin{i+1});
-			if ~isastring(verbose,'on','off'),
+			if ~isastring(verbose,'on','off')
 				error('Incorrect value for property ''verbose'' (type ''help <a href="matlab:help SetCurrentSession">SetCurrentSession</a>'' for details).');
 			end
-		case 'spikes',
+		case 'spikes'
 			spikes = lower(varargin{i+1});
-			if ~isastring(spikes,'on','off'),
+			if ~isastring(spikes,'on','off')
 				error('Incorrect value for property ''spikes'' (type ''help <a href="matlab:help SetCurrentSession">SetCurrentSession</a>'' for details).');
 			end
-		otherwise,
+        otherwise
 			error(['Unknown property ''' num2str(varargin{i}) ''' (type ''help <a href="matlab:help SetCurrentSession">SetCurrentSession</a>'' for details).']);
 	end
 end
@@ -74,7 +74,7 @@ global DATA;
 separator = filesep;
 
 % Initialization
-if isempty(DATA) || ~isfield(DATA,'session') || ~isfield(DATA.session,'path') || ~isfield(DATA.session,'basename'),
+if isempty(DATA) || ~isfield(DATA,'session') || ~isfield(DATA.session,'path') || ~isfield(DATA.session,'basename')
 	format long g;
 	DATA.session.basename = '';
 	DATA.session.path = '';
@@ -97,24 +97,24 @@ if isempty(DATA) || ~isfield(DATA,'session') || ~isfield(DATA.session,'path') ||
 	GlobalSettings;
 end
 
-if isempty(filename) || (strcmp(filename,'same') && isempty(DATA.session.basename)),
+if isempty(filename) || (strcmp(filename,'same') && isempty(DATA.session.basename))
 	% Interactive mode
 	[filename,path] = uigetfile('*.xml','Please select a parameter file for this session');
 	if filename == 0,return; end
 	filename = [path filename];
 end
 
-if strcmp(filename,'same'),
+if strcmp(filename,'same')
 	% Force reload
 	path = DATA.session.path;
 	basename = DATA.session.basename;
 else
 	% Parse file name
 	[path,basename] = fileparts(filename);
-	if isempty(path),
+	if isempty(path)
         path = pwd;
 	else
-		if ~exist(path),
+		if ~exist(path)
 			error(['Directory ''' path ''' does not exist.']);
 		end
 		% Clean path (e.g. simplify ../ or ./ substrings) and make it absolute
@@ -128,7 +128,7 @@ end
 if strcmp(verbose,'on'), disp(['Loading session files for ' basename]); end
 
 % File already loaded?
-if strcmp(basename,DATA.session.basename) & strcmp(path,DATA.session.path) & ~strcmp(filename,'same'),
+if strcmp(basename,DATA.session.basename) & strcmp(path,DATA.session.path) & ~strcmp(filename,'same')
 	disp(['... session files already loaded, skipping - type SetCurrentSession(''same'') to force reload']);
 	disp('Done');
 	return
@@ -142,8 +142,8 @@ if strcmp(verbose,'on'), disp(['... loaded parameter file ''' basename '.xml''']
 DATA.events.time = [];
 DATA.events.description = {};
 eventFiles = dir([path separator basename '.*.evt']);
-if ~isempty(eventFiles),
-	for i = 1:length(eventFiles),
+if ~isempty(eventFiles)
+	for i = 1:length(eventFiles)
 		events = LoadEvents([path separator eventFiles(i).name]);
 		if isempty(events.time), continue; end
 		DATA.events.time = [DATA.events.time ; events.time];
@@ -183,10 +183,12 @@ if strcmp(spikes,'on')
             catch ME
                 if strcmp(verbose,'on')
                     % differentiate error message in case .res file is missing
-                    if ME.identifier == "LoadSpikeTimes:missingRes"
-                        disp(['... (could not load spike file ''' basename '.res.' int2str(i) ''')']);
-                    else                    
-					    disp(['... (could not load spike file ''' basename '.clu.' int2str(i) ''')']);
+                    if ME.identifier == "LoadSpikeTimes:MissingRes"
+                        disp("... (could not load spike file '" + basename + ".res." + int2str(i) + "')");
+                    elseif ME.identifier == "LoadSpikeTimes:ResCluSize"        
+                        disp("... (contents of .res." + int2str(i) + " and .clu." + int2str(i) + " files have incompatible size)");
+                    else
+                        disp("... (could not load spike file '" + basename + ".clu." + int2str(i) + "')");
                     end
                 end
             end
