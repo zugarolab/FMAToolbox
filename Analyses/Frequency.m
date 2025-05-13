@@ -117,11 +117,11 @@ if strcmp(method,'inverse') | strcmp(method,'iisi')
 else
 	% Smoothing
 	% 1) Fixed-kernel
-    t = (limits(1):binSize:limits(2));
-    binned = histcounts(timestamps,t);
+    t = (limits(1):binSize:limits(2)).';
+    binned = histcounts(timestamps,t).';
     t = t(1:end-1); % chosen to match previous behavior of Frequency, t = (t(1:end-1) + t(2:end)) / 2; would be more correct
     f = smoothdata(binned/binSize,'gaussian',5*smooth); % factor 5 chosen to match previous behavior of Frequency
-    frequency = [t; f].';
+    frequency = [t f];
 	if strcmp(method,'adaptive')
 		% 2) Variable-kernel (requires the above 'pilot' fixed-kernel estimate)
 		% Compute variable-kernel sigma
@@ -132,9 +132,10 @@ else
 		sigma = Clip(sigma,0,N*binSize/3);
 		% Perform variable-kernel smoothing
 		binned = [flipud(binned);binned;flipud(binned)];
+        S2 = zeros(N,1);
 		for i = 1:N
 			% Gaussian
-			x = (0:binSize:3*sigma(i))';
+			x = (0:binSize:3*sigma(i)).';
 			x = [flipud(-x);x(2:end)];
 			kernel = exp(-x.^2/sigma(i)^2);
 			kernel = kernel/sum(kernel);
@@ -143,7 +144,7 @@ else
 			bins = N + i + (-n:n);
 			S2(i) = sum(binned(bins).*kernel)/binSize;
 		end
-		frequency = [t S2'];
+		frequency = [t S2];
 	end
 end
 
