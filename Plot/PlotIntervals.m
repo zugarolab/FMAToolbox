@@ -140,12 +140,7 @@ elseif strcmp(style,'rectangles')
     end
     h = patch(x_coord,y_coord,color,'FaceAlpha',alpha,'LineStyle','none');
     if strcmp(legendValue,'off')
-        h.Annotation.LegendInformation.IconDisplayStyle = 'off';
-        % if legend exists, refresh it to hide rectangles from it
-        h_legend = findobj(gcf,'Type','Legend');
-        if ~isempty(h_legend)
-            legend(gca,'hide'); legend(gca,'show');
-        end
+        RemoveFromLegend(h)
     elseif ~strcmp(legendValue,'on')
         h.DisplayName = legendValue;
     end
