@@ -29,7 +29,7 @@ function [peaktopeak,troughs, amplitude] = FindThetaCycles(lfp,varargin)
 %                       matrix format. These intervals will be used to estimate
 %                       the expected theta amplitude and compute amplitude thresholds.
 %                       (default = [0 Inf]);
-%     'marginAmplitude' the minimum theta amplitude (in sd-s). If the theta amplitude
+%     'amplitudeStdThreshold' the minimum theta amplitude (in sd-s). If the theta amplitude
 %                       during a cycle is lower than this amplitude, the cycle will
 %                       be discarded (default = -1). Note that this should be low
 %                       because during a behavioral epoch, theta oscillations are
