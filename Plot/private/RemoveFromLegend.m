@@ -16,7 +16,7 @@ function RemoveFromLegend(h)
 % (at your option) any later version.
 
 arguments
-    h (1,:)
+    h
 end
 
 % set property of graphic objects
