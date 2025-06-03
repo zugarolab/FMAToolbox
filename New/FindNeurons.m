@@ -1,4 +1,4 @@
-function [selectedNeurons,logicalLoc] = FindNeurons(toLookFor,whereToFind)
+function [selectedNeurons,logicalLoc,missingNeuorns] = FindNeurons(toLookFor,whereToFind)
 
 % FindNeurons - find [group unit] pair conserved between two matrices.
 %
@@ -15,16 +15,17 @@ function [selectedNeurons,logicalLoc] = FindNeurons(toLookFor,whereToFind)
 %                   present in both matrices
 % logicalLoc        logical vector of length(whereToFind) with True only
 %                   where the target neurons are present
+% missingNeuorns    logical vector of size(toLookFor) true where neurons
+%                   where not found in both inputs
 %
 % (c) 2025 Federica LARENO FACCINI
 %
 
-[~, rowinB] = ismembertol(toLookFor, whereToFind, 'ByRows', true);
-rowinB(rowinB==0) = [];
-selectedNeurons = whereToFind(rowinB,:);
 
-logicalLoc = false(size(whereToFind,1),1);
-logicalLoc(rowinB) = true;
+[logicalLoc, b] = ismember(whereToFind,toLookFor, 'rows');
+selectedNeurons = whereToFind(logicalLoc,:);
 
+test = unique(b); test(test==0) = [];
+missingNeuorns = (~ismember(1:length(toLookFor),test))';
 end
 
