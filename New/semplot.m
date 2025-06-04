@@ -59,7 +59,11 @@ end
 
 % retrocompatibility: syntax semplot(x,y,color,smooth,solid) used to be accepted
 % varargin is thus necessary
-[x,y,color,opt.smooth,opt.solid,opt.faceColor] = parseSemplot(varargin,opt);
+try
+    [x,y,color,opt.smooth,opt.solid,opt.faceColor] = parseSemplot(varargin,opt);
+catch ME
+    throw(ME)
+end
 
 % convert colors like 'k' to RGB triplet
 try
@@ -197,9 +201,11 @@ function [x,y,color,smooth,solid,faceColor] = parseSemplot(args,opt)
             end
         end
         if narg > 2
-            % use given color
-            color = args{3};
-            ind = 4;
+            % use given color, unless it's a valid property name
+            if (~ischar(args{2}) && ~isstring(args{2})) || ~ismember(args{3},fieldnames(opt))
+                color = args{3};
+                ind = 4;
+            end
         end
     end
 
