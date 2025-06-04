@@ -202,7 +202,7 @@ function [x,y,color,smooth,solid,faceColor] = parseSemplot(args,opt)
         end
         if narg > 2
             % use given color, unless it's a valid property name
-            if (~ischar(args{2}) && ~isstring(args{2})) || ~ismember(args{3},fieldnames(opt))
+            if (~ischar(args{3}) && ~isstring(args{3})) || ~ismember(args{3},fieldnames(opt))
                 color = args{3};
                 ind = 4;
             end
