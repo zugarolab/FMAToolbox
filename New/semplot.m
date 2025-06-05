@@ -6,25 +6,27 @@ function varargout = semplot(varargin,opt)
 %
 %    handles = semplot(x,y,color,<options>)
 %
-%    x              abscissae (optional, default is 1 : size(y,2))
-%    y              ordinates, each column contains multiple values for an
-%                   element of x
-%    color          line color (optional, default is black)
-%    <options>      optional list of property-value pairs (see table below)
+%    x               abscissae (optional, default is 1 : size(y,2))
+%    y               ordinates, each column contains multiple values for an
+%                    element of x
+%    color           line color (optional, default is black)
+%    <options>       optional list of property-value pairs (see table below)
 %
 %    =========================================================================
-%     Properties    Values
+%     Properties     Values
 %    -------------------------------------------------------------------------
-%     'smooth'      Gaussian kernel size in number of samples (default is none)
-%     'solid'       if false (default), shaded area is transparent
-%     'faceColor'   shaded area color, default is color
-%     'legend'      if 'off', plotted elements won't appear in legend
-%                   (default = 'on'); value is also legend label if
-%                   different from 'on'
-%     'lineProp'    cell array of property-value pairs to set line properties
-%                   (see MATLAB Line Properties)
-%     'patchProp'   cell array of property-value pairs to set shaded area
-%                   properties (see MATLAB Patch Properties)
+%     'mode'         use either 'sem' (default) or 'std' (standard deviation)
+%                    to draw shaded area
+%     'smooth'       Gaussian kernel size in number of samples (default is none)
+%     'solid'        if false (default), shaded area is transparent
+%     'faceColor'    shaded area color, default is same as color
+%     'legend'       if 'off', plotted elements won't appear in legend
+%                    (default = 'on'); value is also legend label if
+%                    different from 'on'
+%     'lineProp'     cell array of property-value pairs to set line properties
+%                    (see MATLAB Line Properties)
+%     'patchProp'    cell array of property-value pairs to set shaded area
+%                    properties (see MATLAB Patch Properties)
 %    =========================================================================
 %
 %  OUTPUT
@@ -46,6 +48,7 @@ arguments (Repeating)
     varargin
 end
 arguments
+    opt.mode (1,1) string {mustBeMember(opt.mode,["sem","std"])} = 'sem'
     opt.smooth (1,1) {mustBeNumeric,mustBeNonnegative} = 0
     opt.solid (1,1) {mustBeMember(opt.solid,[0,1])} = false
     opt.faceColor (:,:) = NaN
@@ -56,11 +59,34 @@ end
 
 % retrocompatibility: syntax semplot(x,y,color,smooth,solid) used to be accepted
 % varargin is thus necessary
-[x,y,color,opt.smooth,opt.solid,opt.faceColor] = parseSemplot(varargin,opt);
+try
+    [x,y,color,opt.smooth,opt.solid,opt.faceColor] = parseSemplot(varargin,opt);
+catch ME
+    throw(ME)
+end
+
+% convert colors like 'k' to RGB triplet
+try
+    opt.faceColor = validatecolor(opt.faceColor);
+catch ME
+    throw(ME)
+end
+% set default values
+if opt.solid
+    opt.color = mean([opt.faceColor;1 1 1]);
+    faceAlpha = 1;
+else
+    faceAlpha = 0.5;
+end
 
 % if only one value per ascissa is given
 if isvector(y)
     handles = plot(x,Smooth(y,opt.smooth),'color',color);
+    if opt.legend == "off"
+        RemoveFromLegend(handles)
+    elseif opt.legend ~= "on"
+        handles.DisplayName = opt.legend;
+    end
     if nargout > 0, varargout{1} = handles; end
     hold on
     return
@@ -75,19 +101,18 @@ y_mean = y_mean(~bad);
 
 % prepare patch coordinates and smooth
 xx = [x;flipud(x)];
-yy = [Smooth(y_mean-nansem(y).',opt.smooth); Smooth(flipud(y_mean+nansem(y).'),opt.smooth)];
+if opt.mode == "sem"
+    y_area = nansem(y);
+else
+    y_area = std(y,'omitmissing');
+end
+yy = [Smooth(y_mean-y_area.',opt.smooth); Smooth(flipud(y_mean+y_area.'),opt.smooth)];
 y_mean = Smooth(y_mean,opt.smooth);
 
 % plot shaded area
-handles = fill(xx,yy,opt.faceColor,'EdgeAlpha',0,opt.patchProp{:});
-opt.faceColor = handles.FaceColor; % convert colors like 'k' to RGB triplet
+handles = fill(xx,yy,opt.faceColor,'EdgeAlpha',0,'FaceAlpha',faceAlpha,opt.patchProp{:});
 if opt.legend ~= "on"
     handles.Annotation.LegendInformation.IconDisplayStyle = 'off';
-end
-if opt.solid
-    set(handles,'FaceColor',mean([opt.faceColor;1 1 1]));
-else
-    set(handles,'FaceAlpha',0.5);
 end
 
 % plot line
@@ -176,9 +201,11 @@ function [x,y,color,smooth,solid,faceColor] = parseSemplot(args,opt)
             end
         end
         if narg > 2
-            % use given color
-            color = args{3};
-            ind = 4;
+            % use given color, unless it's a valid property name
+            if (~ischar(args{3}) && ~isstring(args{3})) || ~ismember(args{3},fieldnames(opt))
+                color = args{3};
+                ind = 4;
+            end
         end
     end
 

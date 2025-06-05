@@ -128,44 +128,35 @@ end
 
 nGroups = max(data(:,end));
 
-means = nan(nIterations,nGroups);
+means = nan(nIterations, nGroups);
 
-level=size(data,2)-1;
-while level>nColumns
-    % Now, consider the lewest level of grouping (e.g. at the level of the cell)
-    cells0{level} = cell(max(data(:,level)),1);
-    for i=1:length(cells0{level}),
-        ok = data(:,level)==i;
-        cells0{level}{i} = data(ok,:);
-    end
-    cellConditions0{level} = Accumulate(data(:,[level end]));
-    level = level-1;
+
+% For each column, check if its indices appear in multiple conditions
+% This is so that a paired boostrap can be performed if appropriate.
+% Example: in a paired bootstrap, if in a given shuffle the bootstrap
+% ignores animal2, then the paired bootstrap will ignore it for all
+% conditions. This is undesirable if data are not paired: i.e. if
+% observations for animal2 only apply to one of the conditions. 
+levels = nColumns+1:size(data,2)-1;
+pairedBootstrap = false(size(levels));
+for i=1:length(levels)
+    level=levels(i);
+    percentUnique = mean(min(Accumulate(data(:,[level end])),[],2)==0);
+    % If most of the cells appear in more than one condition, do a paired boostrap
+    if percentUnique<0.5, pairedBootstrap(i) = true; end 
 end
 
-for k=1:nIterations,
-    level=size(data,2)-1;
-    while level>nColumns
-        cells = cells0{level};
-        cellConditions = cellConditions0{level};
-        % Separate between and within-subject designs:
-        if all(any(cellConditions==0,2)) % between-subject case
-            % sample for each condition independetly
-            [~,cellCondition] = max(cellConditions,[],2);
-            idx = []; for j=1:nGroups, indices = find(cellCondition==j); n = length(indices); idx = [idx; indices(ceil(rand(n,1)*n))]; end
-        else
-            % sample on this level, regardless of condition
-            n = length(cells); idx = ceil(rand(n,1)*n);
-        end
-        cells = cells(idx);
-        if level==2 % Last level; it is time to sample with replacement the values WITHIN these cells:
-            for i=1:length(cells), n=size(cells{i},1); idx = ceil(rand(n,1)*n); cells{i} = cells{i}(idx,:); end
-        end
-        resampled = cat(1,cells{:}); % now this level is done
-        level = level-1;
-    end
+% Make a nested of cells for easier sampling:
+nested = MakeNestedGroups(data,nColumns,pairedBootstrap);
 
-    % now that only the "conditions" level remains, get the mean
-    for j=1:nGroups,
+for k = 1:nIterations
+    resampledNestedGroups = BootstrapNestedGroups(nested);
+    resampled = cat(1, resampledNestedGroups{:});
+    while iscell(resampled)
+        resampled = cat(1,resampled{:});
+    end
+    
+    for j=1:nGroups
         try
             means(k,j) = average(resampled(resampled(:,end)==j,1:nColumns));
         catch
@@ -180,4 +171,63 @@ else
     p = mean(means<0);
 end
 
+
+% ------------------------------- Helper functions -------------------------------
+
+function nested = MakeNestedGroups(data,nColumns,pairedBootstrap)
+
+if iscell(data) % if it's already a cell, work through its elements
+    nested = cell(size(data));
+    for i=1:length(data)
+        nested{i} = MakeNestedGroups(data{i},nColumns,pairedBootstrap);
+    end
+    return
+end
+
+if size(data,2)==nColumns+1 % data and the (last) condition column
+    nested = data;
+    return; % no need for further branching
+end
+
+if ~pairedBootstrap(end)
+    % skip the empty bins (no need to take animal2 when considering
+    % condition1 if there are no observations of animal2 in condition1). 
+    ids = unique(data(:,end-1));
+else
+    % we don't skip the empty bins if we want to keep the numbering for this
+    % level because both conditions exist (so we want to resample from both
+    % conditions together in a paired way; overriding the numbering by skipping
+    % empty cells would scramble the pairing)
+    ids = 1:max(data(:,end-1));
+end
+nested = cell(length(ids),1);
+
+for j = 1:length(ids)
+    nested{j} = data(data(:,end-1) == ids(j), [1:end-2 end]);
+end
+
+if size(data,2)>nColumns+2 % We need to call the function more than once:
+    for i=1:length(nested)
+        nested{i} = MakeNestedGroups(nested{i},nColumns,pairedBootstrap(1:end-1));
+    end
+    return
+end
+
+function resampledNestedGroups = BootstrapNestedGroups(nested)
+
+if ~iscell(nested)
+    % Sample with replacement the values within the cell
+    n = size(nested,1);
+    idx = ceil(rand(n,1)*n);
+    resampledNestedGroups = nested(idx,:);
+else
+    % Sample the cells with replacement
+    n = numel(nested);
+    idx = ceil(rand(n,1)*n);
+    resampledNestedGroups = nested(idx);
+    for i = 1:n
+        % Sample with replacement the values within each cell
+        resampledNestedGroups{i} = BootstrapNestedGroups(resampledNestedGroups{i});
+    end
+end
 
