@@ -13,9 +13,10 @@ function [samples, originalIndex, intervalID] = Restrict(samples,intervals,varar
 %
 %    [samples, originalIndex, intervalID] = Restrict(samples,intervals,<options>)
 %
-%    samples         <a href="matlab:help samples">samples</a> to restrict.
+%    samples        <a href="matlab:help samples">samples</a> to restrict.
 %                   They have to be provided in the first column.
-%    intervals      list of (start,stop) pairs
+%    intervals      list of sorted (start,stop) pairs, where intervals(:,1)
+%                   is in ascending order
 %    <options>      optional list of property-value pairs (see table below)
 %
 %    =========================================================================
