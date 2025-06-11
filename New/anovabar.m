@@ -79,26 +79,26 @@ function varargout = anovabar(data,groups,varargin)
 %  Note that for parametric data, the anova will not take the pairing into 
 %  account (but for non-parametric data, a paired friedman test is performed).
 %
-% Case 2: the observations are not paired; groups are therefore indicated
-% separately by a grouping variable:
+%  Case 2: the observations are not paired; groups are therefore indicated
+%  separately by a grouping variable:
 %       controlData = CountInIntervals(spikes(:,1),baseline);
 %       % note that here, 'baseline' intervals are not necessarily paired to the intervals of interest below
 %       responseData = CountInIntervals(spikes(:,1),intervals);
 %       data = [controlData; responseData]; groups = [ones(size(controlData)); ones(size(responseData))*2];
 %       anovabar(data,groups);
 %
-% Case 2bis: same as Case 2, but the grouping variable is contained within 'data':
+%  Case 2bis: same as Case 2, but the grouping variable is contained within 'data':
 %       controlData = CountInIntervals(spikes(:,1),baseline); controlData(:,end+1) = 1;
 %       responseData = CountInIntervals(spikes(:,1),intervals); responseData(:,end+1) = 2;
 %       data = [controlData; responseData];
 %       anovabar(data,'grouped'); % or, of course, anovabar(data(:,1),data(:,end)) as in case 2
 %
-% Case 3: two-way anova: data are grouped according to the columns in 'data'
-% AND ALSO by the grouping variable. In this case, the difference between the
-% (paired) columns will be tested for each of the groups indicated by the grouping
-% variable. For the opposite behavior (testing for the difference between the
-% (unpaired) groups indicated by the grouping variable, for each of the columns
-% of 'data', use <a href="matlab:help anovabar2">anovabar2</a>.
+%  Case 3: two-way anova: data are grouped according to the columns in 'data'
+%       AND ALSO by the grouping variable. In this case, the difference between the
+%       (paired) columns will be tested for each of the groups indicated by the grouping
+%       variable. For the opposite behavior (testing for the difference between the
+%       (unpaired) groups indicated by the grouping variable, for each of the columns
+%       of 'data', use <a href="matlab:help anovabar2">anovabar2</a>.
 %
 %   Inspired by barwitherr by Martina F. Callaghan
 %
@@ -269,19 +269,11 @@ if num2str(vers(1))<8 % Code for Matlab 2010
         hErrorbar = errorbar(mean(x,1), values, errors, errors, '.k');
         set(hErrorbar, 'marker', 'none');
     end
-else % New code for Matlab 2016 and above
-    if nRows > 1
-        hErrorbar = zeros(1,nCols);
-        for col = 1:nCols
-            x = bsxfun(@plus, hbar(col).XData, [hbar(col).XOffset]');
-            hErrorbar(col) = errorbar(x, values(1:length(xOrder),col), errors(1:length(xOrder),col), errors(1:length(xOrder), col), '.k');
-            set(hErrorbar(col), 'marker', 'none')
-        end
-    else
-        x = hbar.XData;
-        hErrorbar = errorbar(x, values, errors, errors, '.k');
-        set(hErrorbar, 'marker', 'none')
-    end
+elseif verLessThan('matlab', '9.7') % Code for Matlab 2016 to 2019a
+    xBars = vertcat(hbar.XData) + vertcat(hbar.XOffset); % xBars(i,j): ascissa of bar i in group j
+    hErrorbar = errorbar(xBars.',values,errors,'Color','k','LineStyle','none');
+else % Code for Matlab 2019b and above
+    hErrorbar = errorbar(vertcat(hbar.XEndPoints).',values,errors,'Color','k','LineStyle','none');
 end
 
 %% Adding significance indication (stars etc)
