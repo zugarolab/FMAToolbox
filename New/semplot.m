@@ -130,30 +130,6 @@ end
 
 % --- helper functions ---
 
-function RemoveFromLegend(h)
-    % this f is a copy of the private f RemoveFromLegend of the Plot
-    % folder, it won't be necessary once semplot is moved there
-
-    arguments
-        h (1,:)
-    end
-
-    % set property of graphic objects
-    for hand = h
-        hand.Annotation.LegendInformation.IconDisplayStyle = 'off';
-    end
-
-    % get parent figure
-    figHandle = ancestor(h(1),'figure');
-
-    % if legends exist, refresh them to effectively hide entries
-    legHandle = findobj(figHandle,'Type','Legend');
-    for hand = legHandle.'
-        hand.Visible = 'off';
-        hand.Visible = 'on';
-    end
-end
-
 function [x,y,color,smooth,solid,faceColor] = parseSemplot(args,opt)
     % automatic handling of Name-Value Arguments removes from varargin all valid property-value pairs* and
     % stores them in the struct opt
