@@ -45,9 +45,16 @@ function varargout = anovabar(data,groups,varargin)
 %                   Set to 2 to inverse this behavior.                 
 %    'paired'       a setting indicating whether values in the same row are
 %                   paired (default = 'on').
+%    'color'        bar colors, a matrix with three columns (RGB values) and
+%                   where each line is a group
+%    'baralpha'     transparency value for bars (between 0 and 1)
 %    'barwidth'     the width of the bars to be plotted (default = 0.8).
 %    'ns'           display the "n.s." label when between-group comparisons
 %                   are not significant (default = false).
+%    'labels'       x labels for conditions
+%    'legend'       if 'off', plotted elements won't appear in legend (default =
+%                   'on'); if different from 'on', must be a string array with
+%                   group names
 %    =========================================================================
 %
 %  OUTPUT
@@ -102,7 +109,7 @@ function varargout = anovabar(data,groups,varargin)
 %
 %   Inspired by barwitherr by Martina F. Callaghan
 %
-% Copyright (C) 2018-2022 by Ralitsa Todorova
+% Copyright (C) 2018-2022 by Ralitsa Todorova, 2025 by Pietro Bozzo (graphics)
 %
 % This program is free software; you can redistribute it and/or modify
 % it under the terms of the GNU General Public License as published by
@@ -117,26 +124,30 @@ data = double(data);
 parametric = true;
 precedence = 1;
 paired = true;
+color = [];
+barAlpha = 1;
 barWidth = 0.8;
 tail = 'both'; % tail for "test0" where each group is compared to zero
 ns = false;
+xlabels = string.empty;
+legendLabels = "on";
 
-for i = 1:2:length(varargin),
-    if ~ischar(varargin{i}),
+for i = 1:2:length(varargin)
+    if ~ischar(varargin{i})
         error(['Parameter ' num2str(i+2) ' is not a property (type ''help <a href="matlab:help anovabar">anovabar</a>'' for details).']);
     end
-    switch(lower(varargin{i})),
-        case 'alpha',
+    switch lower(varargin{i})
+        case 'alpha'
             alpha = varargin{i+1};
             if ~isdvector(alpha) || length(alpha)>2
                 error('Incorrect value for property ''alpha'' (type ''help <a href="matlab:help anovabar">anovabar</a>'' for details).');
             end
-        case 'tail',
+        case 'tail'
             tail = varargin{i+1};
             if ~isastring(lower(tail),'left','right','both')
                 error('Incorrect value for property ''tail'' (type ''help <a href="matlab:help anovabar">anovabar</a>'' for details).');
             end
-        case 'parametric',
+        case 'parametric'
             parametric = varargin{i+1};
             if isastring(lower(parametric),'on','off')
                 if strcmpi(parametric,'on'); parametric = true; else, parametric = false; end
@@ -144,7 +155,7 @@ for i = 1:2:length(varargin),
             if ~islogical(parametric) || length(parametric)>1
                 error('Incorrect value for property ''parametric'' (type ''help <a href="matlab:help anovabar">anovabar</a>'' for details).');
             end
-        case 'paired',
+        case 'paired'
             paired = varargin{i+1};
             if isastring(lower(paired),'on','off')
                 if strcmpi(paired,'on'); paired = true; else, paired = false; end
@@ -159,12 +170,23 @@ for i = 1:2:length(varargin),
             end
         case 'precedence'
             precedence = varargin{i+1};
-            if ~isdvector(precedence,'#1'),
+            if ~isdvector(precedence,'#1')
                 error('Incorrect value for property ''precedence'' (type ''help <a href="matlab:help anovabar">anovabar</a>'' for details).');
+            end
+        case 'color'
+            try % convert colors like 'k' to RGB triplet
+                color = validatecolor(varargin{i+1},'multiple');
+            catch ME
+                throw(ME)
+            end
+        case 'baralpha'
+            barAlpha = varargin{i+1};
+            if ~isdvector(barAlpha,'#1','>=0','<=1')
+                error('Incorrect value for property ''barAlpha'' (type ''help <a href="matlab:help anovabar">anovabar</a>'' for details).');
             end
         case 'barwidth'
             barWidth = varargin{i+1};
-            if ~isdvector(barWidth,'#1'),
+            if ~isdvector(barWidth,'#1')
                 error('Incorrect value for property ''barWidth'' (type ''help <a href="matlab:help anovabar">anovabar</a>'' for details).');
             end
         case 'ns'
@@ -175,7 +197,17 @@ for i = 1:2:length(varargin),
             if ~islogical(ns) || length(ns)>1
                 error('Incorrect value for property ''ns'' (type ''help <a href="matlab:help anovabar">anovabar</a>'' for details).');
             end
-        otherwise,
+        case 'labels'
+            xlabels = varargin{i+1};
+            if ~isastring(xlabels)
+                error('Incorrect value for property ''labels'' (type ''help <a href="matlab:help anovabar">anovabar</a>'' for details).');
+            end
+        case 'legend'
+            legendLabels = string(varargin{i+1});
+            if ~isvector(legendLabels)
+                error('Incorrect value for property ''legend'' (type ''help <a href="matlab:help anovabar">anovabar</a>'' for details).');
+            end
+        otherwise
             error(['Unknown property ''' num2str(varargin{i}) ''' (type ''help <a href="matlab:help anovabar">anovabar</a>'' for details).']);
     end
 end
@@ -193,7 +225,7 @@ else
     average = @(x) nanmedian(x,1);
     semfun = @(x) semedian(x);
     testbetween = @kruskalwallis;
-    if paired, 
+    if paired
         if size(data,2)==2, testpaired = @helper_signrank; 
         else, testpaired = @(x) friedman(x,1,'off'); 
         end
@@ -203,7 +235,7 @@ else
 end
 
 if nargin==1 || isempty(groups)
-    if sum(sum(~isnan(data))==0) > 0, %if one of the groups contains no real values
+    if sum(sum(~isnan(data))==0) > 0 % if one of the groups contains no real values
         return
     end
     xOrder = 1:size(data,2);
@@ -234,21 +266,34 @@ else
     else % separate the columns of 'data'; test difference between groups provided by the grouping variable in the same column
         values = nan(size(data,2),n);
         errors = nan(size(data,2),n);
-        for i=1:n,
+        for i=1:n
             group = xOrder(i);
             values(:,i) = average(data(groups==group,1:end));
     		errors(:,i) = semfun(data(groups==group,1:end))';
     	end
-    	if size(data,2)>1,
+    	if size(data,2)>1
     		xOrder = 1:size(data,2);
         end
     end
     groups = double(groups);
 end
 
-[nRows nCols] = size(values);
-hbar = bar(xOrder,values,'BarWidth',barWidth); % standard implementation of bar function
+hStars0 = matlab.graphics.primitive.Line.empty;
+hComp = matlab.graphics.chart.primitive.Line.empty;
+hStars = matlab.graphics.primitive.Text.empty;
 
+[nRows,nCols] = size(values);
+% validate number of legend labels
+if ~isscalar(legendLabels) && numel(legendLabels) ~= nCols
+    error('Labels in ''legend'' must be as many as there are groups.')
+end
+% plot bars using built-in function
+hbar = bar(xOrder,values,'BarWidth',barWidth,'FaceAlpha',barAlpha);
+if ~isempty(color)
+    for i = 1 : numel(hbar)
+        hbar(i).FaceColor = color(i,:);
+    end
+end
 hold on
 
 vers = version;
@@ -269,7 +314,7 @@ if num2str(vers(1))<8 % Code for Matlab 2010
         hErrorbar = errorbar(mean(x,1), values, errors, errors, '.k');
         set(hErrorbar, 'marker', 'none');
     end
-elseif verLessThan('matlab', '9.7') % Code for Matlab 2016 to 2019a
+elseif verLessThan('matlab', '9.7') % Code for Matlab 2016 to 2019a, should we drop support for these few versions and just have > / < 2019b?
     xBars = vertcat(hbar.XData) + vertcat(hbar.XOffset); % xBars(i,j): ascissa of bar i in group j
     hErrorbar = errorbar(xBars.',values,errors,'Color','k','LineStyle','none');
 else % Code for Matlab 2019b and above
@@ -277,7 +322,7 @@ else % Code for Matlab 2019b and above
 end
 
 %% Adding significance indication (stars etc)
-nStars0 = 0; nObjectsBetween = 0;
+
 % one way anova
 if ~grouped || size(data,2)==1 
     if grouped, [~,~,stats] = testbetween(data(:,1),groups,'off'); u = unique(groups)';
@@ -290,8 +335,7 @@ if ~grouped || size(data,2)==1
                 p = test0(thesedata);
                 if p<alpha(1)
                     % Put a little star above it to show it's significantly different from zero
-                    nStars0 = nStars0+1;
-                    handlesStars0(nStars0) = plot(xOrder(i), sign(values(i))*(max([abs(values(i)+errors(i)) abs(values(i)-errors(i))])+abs(values(i)/7)), '*', 'markersize', 5, 'MarkerEdgeColor', [0 0 0.5]);
+                    hStars0(end+1,1) = plot(xOrder(i), sign(values(i))*(max([abs(values(i)+errors(i)) abs(values(i)-errors(i))])+abs(values(i)/7)), '*', 'markersize', 5, 'MarkerEdgeColor', [0 0 0.5]);
                 end
             end
         end
@@ -320,10 +364,10 @@ if ~grouped || size(data,2)==1
             if comparison(i,3)==0
                 if ns, text(mean([comparison(i,1) comparison(i,2)]), y2, 'n.s.'); end
             else
-                plot([x1 x2], [y1 y1], 'k');
-                plot([x1 x1], [y1 y1-smallnumber/10], 'k');
-                plot([x2 x2], [y1 y1-smallnumber/10], 'k');
-                text(mean([xOrder(comparison(i,1)) xOrder(comparison(i,2))]), y2, repmat('*',1,comparison(i,3)));
+                hComp(end+1,1) = plot([x1 x2], [y1 y1], 'k');
+                hComp(end,2) = plot([x1 x1], [y1 y1-smallnumber/10], 'k');
+                hComp(end,3) = plot([x2 x2], [y1 y1-smallnumber/10], 'k');
+                hStars(end+1,1) = text(mean([xOrder(comparison(i,1)) xOrder(comparison(i,2))]), y2, repmat('*',1,comparison(i,3)));
             end
         end
     end
@@ -350,8 +394,8 @@ else
                 end
                 thesedata = data(groups==u(j),i);
                 if sum(~isnan(thesedata))>2, p = test0(thesedata);
-                    if p<alpha(1), nStars0 = nStars0+1;
-                        handlesStars0(nStars0) = plot(thisx, thisy, 'k*', 'markersize', 5, 'MarkerEdgeColor', [0 0 0]);
+                    if p<alpha(1)
+                        hStars0(end+1,1) = plot(thisx, thisy, 'k*', 'markersize', 5, 'MarkerEdgeColor', [0 0 0]);
                     end % Put a little star above it
                 end
             end; end
@@ -387,38 +431,55 @@ else
                 x1 = xs(j,comparison(i,1));
                 x2 = xs(j,comparison(i,2));
                 if comparison(i,3)==1
-                    plot([x1 x2], [y1 y1], 'k');
-                    plot([x1 x1], [y1 y1-smallnumber/10], 'k');
-                    plot([x2 x2], [y1 y1-smallnumber/10], 'k');
-                    text(mean([x1 x2]), y2, '*','HorizontalAlignment','center');
+                    hComp(end+1,1) = plot([x1 x2], [y1 y1], 'k');
+                    hComp(end,2) = plot([x1 x1], [y1 y1-smallnumber/10], 'k');
+                    hComp(end,3) = plot([x2 x2], [y1 y1-smallnumber/10], 'k');
+                    hStars(end+1,1) = text(mean([x1 x2]), y2, '*','HorizontalAlignment','center');
                 elseif comparison(i,3)==2
-                    plot([x1 x2], [y1 y1], 'k');
-                    plot([x1 x1], [y1 y1-smallnumber/10], 'k');
-                    plot([x2 x2], [y1 y1-smallnumber/10], 'k');
-                    text(mean([x1 x2]), y2, '**','HorizontalAlignment','center');
+                    hComp(end+1,1) = plot([x1 x2], [y1 y1], 'k');
+                    hComp(end,2) = plot([x1 x1], [y1 y1-smallnumber/10], 'k');
+                    hComp(end,3) = plot([x2 x2], [y1 y1-smallnumber/10], 'k');
+                    hStars(end+1,1) = text(mean([x1 x2]), y2, '**','HorizontalAlignment','center');
                 elseif comparison(i,3)==3
-                    plot([x1 x2], [y1 y1], 'k');
-                    plot([x1 x1], [y1 y1-smallnumber/10], 'k');
-                    plot([x2 x2], [y1 y1-smallnumber/10], 'k');
-                    text(mean([x1 x2]), y2, '***','HorizontalAlignment','center');
+                    hComp(end+1,1) = plot([x1 x2], [y1 y1], 'k');
+                    hComp(end,2) = plot([x1 x1], [y1 y1-smallnumber/10], 'k');
+                    hComp(end,3) = plot([x2 x2], [y1 y1-smallnumber/10], 'k');
+                    hStars(end+1,1) = text(mean([x1 x2]), y2, '***','HorizontalAlignment','center');
                 end
             end
         end
     end
     comparison = sigFor2Groups;
 end
-
 hold off
 
+% make x labels
+if ~isempty(xlabels)
+    xticks(hbar(1).XData)
+    xticklabels(xlabels)
+end
+
+% handle legend
+if ~isscalar(legendLabels) || legendLabels ~= "on"
+    if legendLabels == "off"
+        RemoveFromLegend(hbar)
+    else
+        for i = 1 : numel(hbar)
+            hbar(i).DisplayName = legendLabels(i);
+        end
+    end
+end
+if ~isscalar(legendLabels) || legendLabels == "off"
+    RemoveFromLegend(hErrorbar)
+    RemoveFromLegend(hComp)
+end
+
 if nargout>0
-    if nStars0==0, handlesStars0 = []; end
-    if nObjectsBetween==0, handlesComparisons = []; end
     handles.bar = hbar;
     handles.errorbars = hErrorbar;
-    handles.stars = handlesStars0;
-    handles.comparisons = handlesComparisons;
+    handles.stars = hStars0;
+    handles.comparisons = [hComp,hStars];
     varargout{1} = handles;
-
     varargout{2} = comparison;
 end
 
