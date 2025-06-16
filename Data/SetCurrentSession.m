@@ -40,7 +40,10 @@ filename = '';
 if nargin ~= 0
 	if ~isastring(varargin{1},'spikes')
 		filename = varargin{1};
-		varargin = {varargin{2:end}};
+        if isstring(filename)
+            filename = char(filename);
+        end
+		varargin = varargin(2:end);
 	end
 end
 
