@@ -58,6 +58,12 @@ if ~isdmatrix(intervals) || size(intervals,2) ~= 2
   error('Incorrect intervals (type ''help <a href="matlab:help Restrict">Restrict</a>'' for details).');
 end
 
+if isempty(intervals)
+    samples = [];
+    disp('Restriction over empty intervals.');
+    return
+end
+
 if size(samples,1) == 1
 	samples = samples(:);
     transpose = true;
