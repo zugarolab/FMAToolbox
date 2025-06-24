@@ -59,7 +59,7 @@ if ~isdmatrix(intervals) || size(intervals,2) ~= 2
 end
 
 if isempty(intervals)
-    samples = [];
+    samples = []; originalIndex = []; intervalID = [];
     disp('Restriction over empty intervals.');
     return
 end
@@ -86,7 +86,7 @@ for i = 1:2:length(varargin)
 end
 
 if isempty(samples)
-    samples = [];
+    samples = []; originalIndex = []; intervalID = [];
     disp('No samples to restrict.');
     return
 end
