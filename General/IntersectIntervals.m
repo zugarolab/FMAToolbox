@@ -5,7 +5,7 @@ function intersection = IntersectIntervals(a,b)
 % Find intersection I of two sets of intervals A and B, e.g.,
 %
 %   A : [10,20] [25,35] [45,50],    B : [15,30] [55,70],    then
-%   I : [10,35] [45,50] [55,70]
+%   I : [15,20] [25,30]
 %
 %  USAGE
 %
@@ -59,6 +59,10 @@ ind(nan_end+1:end) = numel(b);
 keep_ind = mod(ind(1:2:end),2) | mod(ind(2:2:end),2);
 keep_ind = repelem(keep_ind,2);
 ind = ind(keep_ind);
+if isempty(ind)
+    intersection = [];
+    return
+end
 
 % odd_ind(i) is index of an odd element of ind, which will be replaced by a(odd_ind(i))
 odd_ind = find(mod(ind,2));

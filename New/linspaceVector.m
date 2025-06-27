@@ -22,6 +22,11 @@ end
 
 n = d2-d1;
 
+if isempty(n)
+    y = [];
+    return
+end
+
 % repeat original value n times
 y0 = repelem(d1,n+1);
 nRows = size(y0,1);
