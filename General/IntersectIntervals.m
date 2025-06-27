@@ -33,6 +33,10 @@ arguments
     b (:,2)
 end
 
+% the algorithm exploits the fact that, when both interval lists are flattened, elements of a fall in even / odd
+% intervals of b depending on whether they would fall outside / inside original intervals of b
+% (this requires them to be sorted and non overlapping)
+
 % transpose and flatten to use discretize
 a = a.'; a = a(:);
 b = b.'; b = b(:);
@@ -56,7 +60,7 @@ keep_ind = mod(ind(1:2:end),2) | mod(ind(2:2:end),2);
 keep_ind = repelem(keep_ind,2);
 ind = ind(keep_ind);
 
-% odd_ind(i) is index of an odd element of ind, which will be replaces by a(odd_ind(i))
+% odd_ind(i) is index of an odd element of ind, which will be replaced by a(odd_ind(i))
 odd_ind = find(mod(ind,2));
 % round start to upper odd number and stop to upper even number
 start = ind(1:2:end) + 1 - mod(ind(1:2:end),2);
