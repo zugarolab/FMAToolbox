@@ -14,7 +14,8 @@ function intersection = IntersectIntervals(a,b)
 %    a, b           lists of sorted non-overlapping (start,stop) pairs, i.e., 
 %                   first column is in ascending order and intervals of the
 %                   list are not overlapping (see ConsolidateIntervals to make
-%                   an interval list non overlapping)
+%                   an interval list non overlapping); intervals containing
+%                   NaNs are ignored
 %
 %  SEE
 %
@@ -37,8 +38,10 @@ end
 % intervals of b depending on whether they would fall outside / inside original intervals of b
 % (this requires them to be sorted and non overlapping)
 
-% transpose and flatten to use discretize
+% exclude intervals with any NaNs, transpose and flatten to use discretize
+a = a(~any(isnan(a),2),:);
 a = a.'; a = a(:);
+b = b(~any(isnan(b),2),:);
 b = b.'; b = b(:);
 
 % validate input
@@ -48,17 +51,21 @@ end
 
 % ind(i) is odd iff a(i) falls in an interval of b
 ind = discretize(a,b);
-% NaN at the beginning means 0 (before first interval of b), at the end means numel(b) (after last interval of b)
-nan_ind = isnan(ind);
-nan_beginning = find(nan_ind(1:end-1) & ~nan_ind(2:end),1,'first');
-ind(1:nan_beginning) = 0;
-nan_end = find(~nan_ind(1:end-1) & nan_ind(2:end),1,'first');
-ind(nan_end+1:end) = numel(b);
+% a before first interval of b means 0, a after last interval of b means numel(b)
+ind(a<b(1)) = 0;
+ind(a>b(end)) = numel(b);
 
-% if [ind(i),ind(i+1)] are even, it's an interval of a to exclude entirely
-keep_ind = mod(ind(1:2:end),2) | mod(ind(2:2:end),2);
+% handle case when a ∋ [10,20] and b ∋ [20,35] : interval [20,20] must not be in result
+end_nz = ind ~= 0 & (1 - mod(1:numel(ind),2).'); % end_nz(i) is 1 iff ind(i) is not 0 and i is even
+change_ind = a(end_nz) == b(ind(end_nz)); % change_ind(j) is 1 iff corresponding interval must be shortened
+find_end_nz = find(end_nz);
+ind(find_end_nz(change_ind)) = ind(find_end_nz(change_ind)) - 1;
+
+% if [ind(i),ind(i+1)] are equal and even, it's an interval of a to exclude entirely
+keep_ind = mod(ind(1:2:end),2) | (ind(1:2:end) ~= ind(2:2:end));
 keep_ind = repelem(keep_ind,2);
 ind = ind(keep_ind);
+a = a(keep_ind);
 if isempty(ind)
     intersection = [];
     return
