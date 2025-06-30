@@ -28,7 +28,7 @@ if isempty(n)
 end
 
 % repeat original value n times
-y0 = repelem(d1,n+1);
+y0 = repelem(d1,n+1,1);
 nRows = size(y0,1);
 
 % add 1 for each additional value after d1
