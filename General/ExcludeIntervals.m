@@ -33,7 +33,6 @@ function [intervals,indices] = ExcludeIntervals(intervals1,intervals2,varargin)
 %    See also ConsolidateIntervals, SubtractIntervals, InIntervals, Restrict,
 %    FindInInterval, CountInIntervals, PlotIntervals.
 
-
 % Copyright (C) 2004-2011 by Michaël Zugaro & (C) 2024 by Théo Mathevet
 %
 % This program is free software; you can redistribute it and/or modify

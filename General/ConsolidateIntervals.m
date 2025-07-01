@@ -28,9 +28,8 @@ function [consolidated,target] = ConsolidateIntervals(intervals,varargin)
 %
 %  SEE
 %
-%    See also SubtractIntervals, ExcludeIntervals, InIntervals, Restrict,
-%    FindInInterval, CountInIntervals, PlotIntervals.
-
+%    See also SubtractIntervals, ExcludeIntervals, IntersectIntervals, InIntervals,
+%    Restrict, FindInInterval, CountInIntervals, PlotIntervals.
 
 % Copyright (C) 2004-2011 by Michaël Zugaro
 %

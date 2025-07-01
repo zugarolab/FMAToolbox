@@ -22,7 +22,7 @@ function intersection = IntersectIntervals(a,b)
 %    See also ConsolidateIntervals, SubtractIntervals, ExcludeIntervals,
 %    InIntervals, Restrict, FindInInterval, CountInIntervals, PlotIntervals.
 
-% Copyright (C) 2025 Pietro Bozzo
+% Copyright (C) by 2025 Pietro Bozzo
 %
 % This program is free software; you can redistribute it and/or modify
 % it under the terms of the GNU General Public License as published by

@@ -30,9 +30,13 @@ function PlotIntervals(intervals,varargin)
 %                   
 %    =========================================================================
 %
+%  SEE
+%
+%    See also ConsolidateIntervals, SubtractIntervals, ExcludeIntervals,
+%    IntersectIntervals, InIntervals, Restrict, FindInInterval, CountInIntervals.
 
 % Copyright (C) 2008-2013 by Gabrielle Girardeau & Michaël Zugaro, 
-% (C) 2023-2025 by Ralitsa Todorova and Pietro Bozzo (graphics optimization)
+% (C) 2023-2025 by Ralitsa Todorova & Pietro Bozzo (graphics optimization)
 %
 % This program is free software; you can redistribute it and/or modify
 % it under the terms of the GNU General Public License as published by

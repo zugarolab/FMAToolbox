@@ -32,9 +32,9 @@ function [samples, originalIndex, intervalID] = Restrict(samples,intervals,varar
 %  SEE
 %
 %    See also ConsolidateIntervals, SubtractIntervals, ExcludeIntervals,
-%    InIntervals, Restrict, FindInInterval, CountInIntervals, PlotIntervals.
+%    IntersectIntervals, InIntervals, FindInInterval, CountInIntervals, PlotIntervals.
 
-% Copyright (C) 2004-2011 by Michaël Zugaro, 2025 Pietro Bozzo (vectorized algorithm)
+% Copyright (C) 2004-2011 by Michaël Zugaro, & (C) 2025 by Pietro Bozzo (vectorized algorithm)
 %
 % This program is free software; you can redistribute it and/or modify
 % it under the terms of the GNU General Public License as published by
