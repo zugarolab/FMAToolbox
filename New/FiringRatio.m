@@ -49,7 +49,8 @@ opt.limits(isnan(opt.limits)) = default_limits(isnan(opt.limits));
 
 % keep spikes inside limits and shift them to 0
 spike_times = spikes(:,1);
-spike_times = spike_times(spike_times >= opt.limits(1) & spike_times <= opt.limits(2));
+keep_ind = spike_times >= opt.limits(1) & spike_times <= opt.limits(2);
+spike_times = spike_times(keep_ind);
 spike_times = spike_times - opt.limits(1) + opt.binSize/2;
 
 % discretize time
@@ -58,7 +59,7 @@ bin_ind(bin_ind==0) = 1;
 
 % ratio
 n_units = numel(unique(spikes(:,2)));
-ratio = accumarray(bin_ind,spikes(:,2),[],@(x) numel(unique(x))) / n_units;
+ratio = accumarray(bin_ind,spikes(keep_ind,2),[],@(x) numel(unique(x))) / n_units;
 time = (opt.limits(1) : opt.binSize : opt.limits(2)+opt.binSize/2).';
 ratio = [time, [ratio;zeros(numel(time)-numel(ratio),1)]];
 
