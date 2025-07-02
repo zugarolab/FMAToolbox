@@ -1,30 +1,32 @@
-function s = semedian(x,varargin)
+function s = semedian(x,dim)
 
-%semedian - Compute standard error of the median.
+%semedian - Compute standard error of the median, ignoring NaNs.
 %
 %  USAGE
 %
 %    s = semedian(x)
 %
 %    x              vector or matrix over which the error should be computed
+%    dim            optionally, dimension along which to operate, default
+%                   is first dimension of x different than 1
 
-% Copyright (C) 2013 by Michaël Zugaro
+% Copyright (C) 2013 by Michaël Zugaro & (C) 2025 by Pietro Bozzo
 %
 % This program is free software; you can redistribute it and/or modify
 % it under the terms of the GNU General Public License as published by
 % the Free Software Foundation; either version 3 of the License, or
 % (at your option) any later version.
 
-% Check parameters
-if nargin < 1,
-  error('Incorrect number of parameters (type ''help <a href="matlab:help semedian">semedian</a>'' for details).');
-end
-if ~isdmatrix(x) & ~isdvector(x),
-  error('Incorrect input - use vector or matrix (type ''help <a href="matlab:help semedian">semedian</a>'' for details).');
+arguments
+  x (:,:)
+  dim (1,1) {mustBeNumeric,mustBeInteger} = 0
 end
 
-if any(size(x)==1), x = x(:); end
+% assign default value
+if dim == 0
+    dim = find(size(x) ~= 1,1);
+end
 
-n = size(x,1);
-m = repmat(nanmedian(x),n,1);
-s = sqrt( nansum((x-m).^2) / (n*(n-1)) );
+n = size(x,dim);
+m = median(x,dim,'omitmissing');
+s = sqrt( sum((x-m).^2,dim,'omitmissing') / (n*(n-1)) );
