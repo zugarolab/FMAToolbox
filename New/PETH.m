@@ -140,8 +140,7 @@ if size(samples,2)==2 % if the provided data is a signal rather than events
     t = linspace(duration(:,1),duration(2),nBins);
     mat_t = bsxfun(@plus,events,t);
     dt = diff(samples(:,1));
-    gaps = find(dt>median(dt)*2);
-    samples(gaps,2) = nan;
+    samples(dt>median(dt)*2,2) = nan;       % To take care of gaps in the signal : interpolate values in the gaps to nans
     if strcmp(mode, 'l')
         mat = interp1(samples(:,1),samples(:,2),mat_t);
         m = Smooth(nanmean(mat),smooth);
