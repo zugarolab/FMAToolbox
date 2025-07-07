@@ -93,7 +93,7 @@ if isvector(y)
 end
 
 % remove ascissae where all values are NaN
-y_mean = mean(y,'omitmissing').';
+y_mean = mean(y,'omitnan').';
 bad = isnan(y_mean);
 x = x(~bad);
 y = y(:,~bad);
@@ -104,7 +104,7 @@ xx = [x;flipud(x)];
 if opt.mode == "sem"
     y_area = nansem(y);
 else
-    y_area = std(y,'omitmissing');
+    y_area = std(y,'omitnan');
 end
 yy = [Smooth(y_mean-y_area.',opt.smooth); Smooth(flipud(y_mean+y_area.'),opt.smooth)];
 y_mean = Smooth(y_mean,opt.smooth);

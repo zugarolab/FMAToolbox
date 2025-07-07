@@ -28,4 +28,4 @@ if dim == 0
 end
 
 n = sum(~isnan(x),dim);
-s = std(x,0,dim,'omitmissing') ./ sqrt(n);
+s = std(x,0,dim,'omitnan') ./ sqrt(n);

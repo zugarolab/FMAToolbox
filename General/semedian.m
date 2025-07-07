@@ -28,5 +28,5 @@ if dim == 0
 end
 
 n = size(x,dim);
-m = median(x,dim,'omitmissing');
-s = sqrt( sum((x-m).^2,dim,'omitmissing') / (n*(n-1)) );
+m = median(x,dim,'omitnan');
+s = sqrt( sum((x-m).^2,dim,'omitnan') / (n*(n-1)) );
