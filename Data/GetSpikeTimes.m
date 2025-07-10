@@ -54,7 +54,7 @@ function spikes = GetSpikeTimes(units,varargin)
 %    % or
 %    s = GetSpikeTimes('all','output','full');
 %
-%    % timestamps and identifiers, for units [1 7], [4 3] and [2 5]
+%    % timestamps and identifiers, for units [1 7], [4 3], and [2 5]
 %    % unit [1 7] will be assigned number 1, unit [2 5] number 2, and
 %    % unit [4 3] number 3, independent from the order in which they are listed
 %    s = GetSpikeTimes([1 7;4 3;2 5],'output','numbered');
@@ -65,7 +65,13 @@ function spikes = GetSpikeTimes(units,varargin)
 %    % timestamps loaded from CellExplorer
 %    s = GetSpikeTimes('output','time','session','<session_path>');
 %
-%    % timestamps, electrode groups, and clusters loaded from CellExplorer
+%    % timestamps loaded from CellExplorer, for units [1 1], [4 3], and [2 -2]
+%    % note how unit 1 from cluster 1 is a real unit and how specifying -2
+%    % for cluster 2 means all units, as noise and MUA are already excluded
+%    s = GetSpikeTimes([1 1;4 3;2 -2],'session','<session_path>');
+%
+%    % timestamps, electrode groups, and clusters loaded from CellExplorer (can also
+%    % be combined with 'units', with negative clusters interpreted as usual)
 %    s = GetSpikeTimes('output','full','session','<session_path>');
 %
 %  NOTE
@@ -78,7 +84,7 @@ function spikes = GetSpikeTimes(units,varargin)
 %
 %    See also LoadSpikeTimes, PlotTicks.
 
-% Copyright (C) 2004-2017 by Michaël Zugaro
+% Copyright (C) 2004-2017 by Michaël Zugaro & (C) 2025 by Pietro Bozzo
 %
 % This program is free software; you can redistribute it and/or modify
 % it under the terms of the GNU General Public License as published by
@@ -156,7 +162,7 @@ end
 
 % Adjust output matrix size
 if isempty(spikes)
-	switch(output)
+	switch output
 		case 'time'
 			spikes = nan(0,1);
 		case 'numbered'
@@ -170,7 +176,7 @@ end
 % Selected units only
 if ~isastring(units,'all')
 	nUnits = size(units,1);
-	selected = false(size(spikes,1));
+	selected = false(size(spikes,1),1);
 	for i = 1 : nUnits
 		group = units(i,1);
 		cluster = units(i,2);
@@ -178,7 +184,7 @@ if ~isastring(units,'all')
             % keep [group, cluster] combination
             selected = selected | (spikes(:,2) == group & spikes(:,3) == cluster);
         elseif strcmp(output,'cellexplorer')
-            % no clusters must be excluded as noise and MUA aren't present in CellExplorer
+            % no clusters must be excluded, as noise and MUA aren't present in CellExplorer
             selected = selected | spikes(:,2) == group; 
         else
             switch cluster
@@ -197,11 +203,8 @@ end
 if strcmp(output,'time')
 	spikes = spikes(:,1);
 elseif strcmp(output,'numbered')
-	[units,~,i] = unique(spikes(:,2:end),'rows');
-	nUnits = length(units);
-	index = 1:nUnits;
-	id = index(i).';
-	spikes = [spikes(:,1) id];
+	[~,~,id] = unique(spikes(:,2:end),'rows');
+	spikes = [spikes(:,1),id];
 end
 
 spikes = sortrows(spikes,1);
