@@ -1,4 +1,3 @@
-
 function spikes = GetSpikes(units,varargin)
 
 %GetSpikes - Get spike timestamps.
@@ -7,7 +6,6 @@ function spikes = GetSpikes(units,varargin)
 %
 %    This function is provided for convenience. It simply calls <a href="matlab:help GetSpikeTimes">GetSpikeTimes</a>
 %    using the same parameters. See this function for details.
-
 
 % Copyright (C) 2004-2017 by Michaël Zugaro
 %
