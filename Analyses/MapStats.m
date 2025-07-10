@@ -24,8 +24,16 @@ function stats = MapStats(map,varargin)
 %                   (default = 0.2)
 %     'minSize'     fields smaller than this size are considered spurious
 %                   and ignored (default = 100 for 2D, 10 for 1D)
+%     'maxSize'     fields larger than this percentage of the maze size 
+%                   are considered noise and ignored (default = 0.50)
+%     'sepEdge'     fields with maximum Firing Rate closer to the edges less
+%                   than this percentage of the maze size are ignored
+%                   (default = 0.0)
 %     'minPeak'     peaks smaller than this size are considered spurious
 %                   and ignored (default = 1)
+%     'minPeak2nd'  for secondary place fields, peaks smaller than this 
+%                   percentage of maximum Firing Rate along the maze are
+%                   considered spurious and ignored (default 0.60)
 %     'localMax'    enforce search for local maxima (default = 'off')
 %     'type'        'll' if X and Y are linear, 'cl' if X is circular and Y
 %                   linear, 'lc' if X is linear and Y circular, or 'cc' if X
