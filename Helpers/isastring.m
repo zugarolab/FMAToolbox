@@ -28,14 +28,14 @@ end
 
 test = true;
 
+if isstring(x) % allow the new "string" format (double quotes)
+    x = char(x); 
+end
+
 if ~isvector(x)
 	test = false;
 	return;
 end
-
-if isstring(x) % allow the new "string" format (double quotes)
-    x = char(x); 
-end 
 
 if ~ischar(x)
 	test = false;
