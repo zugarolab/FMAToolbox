@@ -9,7 +9,8 @@
 %
 %  SEE ALSO
 %
-%    See also isdmatrix, isdvector, isdscalar, isimatrix, isivector, isiscalar.
+%    See also isdmatrix, isdvector, isdscalar, isimatrix, isivector, isiscalar,
+%    isText.
 %
 
 % Copyright (C) 2004-2016 by Michaël Zugaro
