@@ -12,9 +12,20 @@ function events = LoadEvents(filename,opt)
 %    =========================================================================
 %     Properties    Values
 %    -------------------------------------------------------------------------
-%     'compact'     if false (default), output is DESCRIBE; otherwise it is
-%                   DESCRIBE
+%     'compact'     if 'on', events with the same name are fused and their
+%                   timestamps form a matrix where each row is an istance of the
+%                   event, i.e., [start,stop] (default 'off')
+%                   NOTES: changes output type, can only be used with
+%                   .cat.evt or .event.mat files
 %    =========================================================================
+%
+%  OUTPUT
+%
+%    events         struct with fields:
+%                   - times, column vector of event timestamps (if 'compact',
+%                     cell array where each element corresponds to an event
+%                     and contains a matrix)
+%                   - descriptions, cell array of event names
 
 % Copyright (C) 2004-2015 by Michaël Zugaro & (C) 2025 by Pietro Bozzo
 %
@@ -25,7 +36,12 @@ function events = LoadEvents(filename,opt)
 
 arguments
     filename (1,:) char
-    opt.compact (1,1) {mustBeLogical} = false
+    opt.compact (1,:) {mustBeLogicalScalar} = false
+end
+
+% convert to logical
+if isText(opt.compact)
+    opt.compact = isastring(opt.compact,'on','off');
 end
 
 if ~isfile(filename)
@@ -68,7 +84,7 @@ if extension ~= ".mat"
                 times{end+1,1} = [events.time(2*i-1),events.time(2*i)];
             end
         end
-        events.description = names([true;~repetition]);
+        events.description = cellstr(names([true;~repetition]));
         events.time = times;
     end
 else
@@ -126,5 +142,11 @@ function name = prepareName(str)
     end
     % remove 'bis' to correctly detect duplicates
     str{end} = erase(str{end},'bis');
-    name = [str{:}];
+    % last elements of str are event name and possibly its number
+    if all(isstrprop(str{end},'digit'))
+        % keep event number
+        name = [str{end-1:end}];
+    else
+        name = str{end};
+    end
 end
