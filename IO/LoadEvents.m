@@ -116,7 +116,7 @@ end
 end
 
 function name = prepareName(str)
-    % words
+    % words, first two are 'beginning of' or 'end of' and can be discarded
     str = strsplit(str);
     % parts of event name
     str = strsplit(str{end},'_');
@@ -124,9 +124,7 @@ function name = prepareName(str)
         % remove last number
         str = str(1:end-1);
     end
-    if str{end}(end-2:end) == "bis"
-        % remove 'bis' to correctly detect duplicates
-        str{end} = str{end}(1:end-3);
-    end
-    name = str{end};
+    % remove 'bis' to correctly detect duplicates
+    str{end} = erase(str{end},'bis');
+    name = [str{:}];
 end
