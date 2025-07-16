@@ -30,6 +30,7 @@ function SetCurrentSession(varargin)
 %      file name                               replaces
 %      <basename>.cell_metrics.cellinfo.mat    <basename>.res, <basename>.clu
 %      <basename>.animal.behavior.mat          <basename>.cat.evt
+%      <basename>.<event_name>.event.mat       <basename>.<event_name>.evt
 
 % Copyright (C) 2004-2017 by Michaël Zugaro, 2014 by Gabrielle Girardeau,
 % (C) 2025 by Pietro Bozzo
@@ -46,7 +47,7 @@ filename = '';
 
 % Filename?
 if nargin ~= 0
-	if ~isastring(varargin{1},'spikes')
+	if ~isastring(varargin{1},'spikes','verbose')
 		filename = varargin{1};
         if isstring(filename)
             filename = char(filename);
@@ -57,7 +58,7 @@ end
 
 % Check number of parameters
 if mod(length(varargin),2) ~= 0
-  error('Incorrect number of parameters (type ''help <a href="matlab:help SetCurrentSession">SetCurrentSession</a>'' for details).');
+    error('Incorrect number of parameters (type ''help <a href="matlab:help SetCurrentSession">SetCurrentSession</a>'' for details).');
 end
 
 % Parse parameter list
@@ -65,10 +66,10 @@ for i = 1:2:length(varargin)
 	if ~ischar(varargin{i})
 		error(['Parameter ' num2str(i+2) ' is not a property (type ''help <a href="matlab:help SetCurrentSession">SetCurrentSession</a>'' for details).']);
 	end
-	switch(lower(varargin{i}))
+	switch lower(varargin{i})
 		case 'verbose'
 			verbose = lower(varargin{i+1});
-			if ~isastring(verbose,'on','off')
+            if ~isastring(verbose,'on','off')
 				error('Incorrect value for property ''verbose'' (type ''help <a href="matlab:help SetCurrentSession">SetCurrentSession</a>'' for details).');
             end
             verbose = isastring(verbose,'on');
@@ -129,7 +130,7 @@ else
 		if ~isfolder(path)
 			error(['Directory ''' path ''' does not exist.']);
 		end
-		% Clean path (e.g. simplify ../ or ./ substrings) and make it absolute
+		% Clean path (e.g., simplify ../ or ./ substrings) and make it absolute
 		here = pwd;
 		cd(path);
 		path = pwd;
@@ -142,7 +143,7 @@ if verbose, disp(['Loading session files for ' basename]); end
 % File already loaded?
 if strcmp(basename,DATA.session.basename) && strcmp(path,DATA.session.path) && ~strcmp(filename,'same')
 	disp('... session files already loaded, skipping - type SetCurrentSession(''same'') to force reload');
-	disp('Done');
+	verbose && fprintf(1,'Done\n');
 	return
 end
 
@@ -153,19 +154,45 @@ if verbose, disp(['... loaded parameter file ''' basename '.xml''']); end
 % Event file(s)
 DATA.events.time = [];
 DATA.events.description = {};
-eventFiles = dir([path separator basename '.*.evt']);
-if ~isempty(eventFiles)
-	for i = 1:length(eventFiles)
-		events = LoadEvents([path separator eventFiles(i).name]);
-		if isempty(events.time), continue; end
-		DATA.events.time = [DATA.events.time ; events.time];
-		DATA.events.description = {DATA.events.description{:} events.description{:}}';
-		if verbose, disp(['... loaded event file ''' eventFiles(i).name '''']); end
-	end
-	[DATA.events.time,i] = sortrows(DATA.events.time);
-	DATA.events.description = {DATA.events.description{i}}';
-else
-	if verbose, disp('... (no event file found)'); end
+behavior_file = [path separator basename '.animal.behavior.mat'];
+load_evt = true;
+if isfile(behavior_file)
+    verbose && fprintf(1,['... detected event file ''' basename '.animal.behavior.mat''\n']);
+    try
+        load(behavior_file,'behavior')
+        event_times = cellfun(@(x) [x.startTime,x.stopTime],behavior.epochs,UniformOutput=false);
+        DATA.events.time = vertcat(event_times{:}); % CHECK IF IT SHOULD BE cell
+        DATA.events.description = cellfun(@(x) x.name,behavior.epochs,UniformOutput=false);
+        load_evt = false;
+    catch
+        disp("... (could not load '" + behavior_file);
+    end
+    eventFiles = dir([path separator basename '.*.event.mat']);
+    if ~isempty(eventFiles)
+	    for i = 1:length(eventFiles)
+            events = LoadEvents([path separator eventFiles(i).name]);
+
+        end
+    else
+	    verbose && fprintf(1,'... (no .event.mat file found)\n');
+    end
+end
+if load_evt
+    eventFiles = dir([path separator basename '.*.evt']);
+    if ~isempty(eventFiles)
+	    for i = 1:length(eventFiles)
+		    events = LoadEvents([path separator eventFiles(i).name]);
+            if ~isempty(events.time)
+	    	    DATA.events.time = [DATA.events.time ; events.time];
+		        DATA.events.description = [DATA.events.description events.description].'; % CHECK SIZE
+		        if verbose, disp(['... loaded event file ''' eventFiles(i).name '''']); end
+            end
+	    end
+	    [DATA.events.time,ind] = sortrows(DATA.events.time);
+	    DATA.events.description = DATA.events.description(ind).';
+    else
+	    verbose && fprintf(1,'... (no .evt file found)\n');
+    end
 end
 
 % Position file
@@ -180,7 +207,7 @@ elseif exist([path separator basename '.mqa'],'file')
 	DATA.positions = LoadPositions([path separator basename '.mqa'],DATA.rates.video);
 	if verbose, disp(['... loaded position file ''' basename '.mqa''']); end
 else
-	if verbose, disp('... (no position file found)'); end
+	verbose && fprintf(1,'... (no position file found)\n');
 end
 
 % Spike files
@@ -203,7 +230,7 @@ if strcmp(spikes,'on')
         end
     end
     if load_clu
-        for i = 1:DATA.spikeGroups.nGroups
+        for i = 1 : DATA.spikeGroups.nGroups
             filename = [path separator basename '.clu.' int2str(i)];
             if exist(filename,'file')
                 try
@@ -233,4 +260,4 @@ end
 DATA.session.basename = basename;
 DATA.session.path = path;
 
-verbose &&  fprintf(1,'Done\n');
+verbose && fprintf(1,'Done\n');
