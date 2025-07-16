@@ -74,11 +74,11 @@ if extension ~= ".mat"
 else
     % Load CellExplorer file
     CE = load(filename);
+    if isscalar(CE) && isscalar(fieldnames(CE)) % if only one variable was saved, use it
+        CE = CE.(string(fieldnames(CE)));
+    end
     if ~isfield(CE,'timestamps')
         error('Expecting field ''timestamps'' in .mat structure.')
-    end
-    if ~size(CE.timestamps,2) == 2
-        error('Timestamps should have two columns.')
     end
     events.time = CE.timestamps;
     % name of event
@@ -105,10 +105,11 @@ else
 
         % add peak if present
         if size(events.time,2) == 2 && isfield(CE,'peaks')
-            events.time = [events.time(:,1).';CE.peaks.';events.time(:,1).'];
+            events.time = [events.time(:,1),CE.peaks,events.time(:,1)];
             events.description = [events.description(1);name+" peak";events.description(2)];
         end
         events.description = cellstr(repmat(events.description,size(events.time,1),1));
+        events.time = events.time.';
         events.time = events.time(:);
     end
 end

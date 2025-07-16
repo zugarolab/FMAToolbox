@@ -154,45 +154,36 @@ if verbose, disp(['... loaded parameter file ''' basename '.xml''']); end
 % Event file(s)
 DATA.events.time = [];
 DATA.events.description = {};
-behavior_file = [path separator basename '.animal.behavior.mat'];
-load_evt = true;
+behavior_file = [path separator basename '.animal.behavior.mat']; % CellExplorer file
 if isfile(behavior_file)
     verbose && fprintf(1,['... detected event file ''' basename '.animal.behavior.mat''\n']);
     try
         load(behavior_file,'behavior')
-        event_times = cellfun(@(x) [x.startTime,x.stopTime],behavior.epochs,UniformOutput=false);
+        event_times = cellfun(@(x) [x.startTime;x.stopTime],behavior.epochs.sessions,UniformOutput=false); % CONFLICT: SOMETIMES struct
         DATA.events.time = vertcat(event_times{:}); % CHECK IF IT SHOULD BE cell
-        DATA.events.description = cellfun(@(x) x.name,behavior.epochs,UniformOutput=false);
-        load_evt = false;
+        event_descriptions = cellfun(@(x) {['Beginning of ',x.name];['End of ',x.name]},behavior.epochs.sessions,UniformOutput=false).';
+        event_descriptions = [event_descriptions{:}];
+        DATA.events.description = event_descriptions(:);
     catch
         disp("... (could not load '" + behavior_file);
     end
-    eventFiles = dir([path separator basename '.*.event.mat']);
-    if ~isempty(eventFiles)
-	    for i = 1:length(eventFiles)
-            events = LoadEvents([path separator eventFiles(i).name]);
-
-        end
-    else
-	    verbose && fprintf(1,'... (no .event.mat file found)\n');
-    end
+    eventFiles = dir([path separator basename '.*.events.mat']); % look for CellExplorer event files
+else
+    eventFiles = dir([path separator basename '.*.evt']); % look for standard FMAT event files
 end
-if load_evt
-    eventFiles = dir([path separator basename '.*.evt']);
-    if ~isempty(eventFiles)
-	    for i = 1:length(eventFiles)
-		    events = LoadEvents([path separator eventFiles(i).name]);
-            if ~isempty(events.time)
-	    	    DATA.events.time = [DATA.events.time ; events.time];
-		        DATA.events.description = [DATA.events.description events.description].'; % CHECK SIZE
-		        if verbose, disp(['... loaded event file ''' eventFiles(i).name '''']); end
-            end
-	    end
-	    [DATA.events.time,ind] = sortrows(DATA.events.time);
-	    DATA.events.description = DATA.events.description(ind).';
-    else
-	    verbose && fprintf(1,'... (no .evt file found)\n');
-    end
+if ~isempty(eventFiles)
+	for i = 1 : length(eventFiles)
+		events = LoadEvents([path separator eventFiles(i).name]);
+        if ~isempty(events.time)
+	        DATA.events.time = [DATA.events.time;events.time];
+		    DATA.events.description = [DATA.events.description;events.description];
+	        if verbose, disp(['... loaded event file ''' eventFiles(i).name '''']); end
+        end
+	end
+	[DATA.events.time,ind] = sortrows(DATA.events.time);
+    DATA.events.description = DATA.events.description(ind);
+else
+    verbose && fprintf(1,'... (no .evt file found)\n');
 end
 
 % Position file
