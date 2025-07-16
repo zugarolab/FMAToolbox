@@ -161,7 +161,7 @@ if isfile(behavior_file)
         load(behavior_file,'behavior')
         event_times = cellfun(@(x) [x.startTime;x.stopTime],behavior.epochs.sessions,UniformOutput=false); % CONFLICT: SOMETIMES struct
         DATA.events.time = vertcat(event_times{:}); % CHECK IF IT SHOULD BE cell
-        event_descriptions = cellfun(@(x) {['Beginning of ',x.name];['End of ',x.name]},behavior.epochs.sessions,UniformOutput=false).';
+        event_descriptions = cellfun(@(x) {['beginning of ',x.name];['end of ',x.name]},behavior.epochs.sessions,UniformOutput=false).';
         event_descriptions = [event_descriptions{:}];
         DATA.events.description = event_descriptions(:);
     catch
@@ -226,7 +226,7 @@ if strcmp(spikes,'on')
             if exist(filename,'file')
                 try
                 	DATA.spikes = [DATA.spikes;LoadSpikeTimes(filename,DATA.rates.wideband)];
-            		verbose && fprintf(1,['... loaded spike file ''' basename '.clu.' int2str(i) '''']);
+            		verbose && fprintf(1,['... loaded spike file ''' basename '.clu.' int2str(i) '''\n']);
                 catch ME
                     if verbose
                         % differentiate error message in case .res file is missing
