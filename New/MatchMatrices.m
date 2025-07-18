@@ -42,6 +42,6 @@ function [matched,logicalReference,missingElements] = MatchMatrices(reference,qu
 matched = reference(logicalReference,:);
 
 test = unique(b); test(test==0) = [];
-missingElements = (ismember(1:length(query),test))';
+missingElements = (~ismember(1:length(query),test))';
 end
 
