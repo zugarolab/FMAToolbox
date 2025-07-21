@@ -140,8 +140,11 @@ if isempty(units)
 	spikes = [];
 elseif ~isempty(session)
     % load CellExplorer file
-    file_root = session(1:find(session == '.',1,'last'));
-    load(file_root+"cell_metrics.cellinfo.mat",'cell_metrics')
+    ce_file = session(1:find(session == '.',1,'last'))+"cell_metrics.cellinfo.mat";
+    if ~isfile(ce_file)
+        error('GetSpikeTimes:MissingCellExplorerFile',fileName(ce_file)+" not found.")
+    end
+    load(ce_file,'cell_metrics')
     spike_times = vertcat(cell_metrics.spikes.times{:});
     n_spikes_per_unit = cellfun(@(x) size(x,1),cell_metrics.spikes.times).';
     unit_group = repelem(cell_metrics.shankID.',n_spikes_per_unit,1);
