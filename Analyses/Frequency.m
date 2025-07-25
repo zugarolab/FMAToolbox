@@ -22,6 +22,9 @@ function frequency = Frequency(timestamps,varargin)
 %     'limits'      [start stop] in seconds (default = approx. first and last
 %                   timestamps)
 %     'binSize'     bin size in seconds (default = 0.050)
+%     'step'        frequency is computed in windows of length 'binSize' and
+%                   overlap 'binSize' / 'step' (must be integer, default is
+%                   1: no overlap, ignored for method 'inverse')
 %     'smooth'      Gaussian kernel size in number of samples (default = 2);
 %                   for retrocompatibility, smooth * 5 is used as size
 %                   (e.g., default is 10 samples)
@@ -35,7 +38,7 @@ function frequency = Frequency(timestamps,varargin)
 %    a Nx2 matrix (original spike timestamps in column 1, frequencies in column 2)
 
 % Copyright (C) 2004-2011 by Michaël Zugaro
-%           (C) 2025 by Pietro Bozzo (speed optimization)
+%           (C) 2025 by Pietro Bozzo
 %
 % This program is free software; you can redistribute it and/or modify
 % it under the terms of the GNU General Public License as published by
@@ -45,6 +48,7 @@ function frequency = Frequency(timestamps,varargin)
 % Defaults
 method = 'fixed';
 binSize = 0.05;
+step = 1;
 smooth = 2;
 limits = [];
 show = 'off';
@@ -77,6 +81,12 @@ for i = 1:2:length(varargin)
 			if ~isdscalar(binSize,'>=0')
 				error('Incorrect value for property ''binSize'' (type ''help <a href="matlab:help Frequency">Frequency</a>'' for details).');
 			end
+
+        case 'step'
+            step = varargin{i+1};
+            if ~isdscalar(step,'>0') || mod(step,1)
+				error('Incorrect value for property ''step'' (type ''help <a href="matlab:help Frequency">Frequency</a>'' for details).');
+            end
 
 		case 'limits'
 			limits = varargin{i+1};
@@ -118,8 +128,15 @@ else
 	% Smoothing
 	% 1) Fixed-kernel
     t = (limits(1):binSize:limits(2)).';
-    binned = histcounts(timestamps,t).';
-    t = t(1:end-1); % chosen to match previous behavior of Frequency, t = (t(1:end-1) + t(2:end)) / 2; would be more correct
+    binned = zeros(step,numel(t)-1);
+    t_end = zeros(step,numel(t)-1);
+    for i = 1 : step
+        binned(i,:) = histcounts(timestamps,t + (i-1)*binSize/step);
+        % t_end is not centered in windows to match previous behavior of Frequency, t = (t(1:end-1) + t(2:end)) / 2; would be more correct
+        t_end(i,:) = t(1:end-1).' + (i-1)*binSize/step;
+    end
+    binned = binned(:); % binned(i) is number of timestamps in [t(i),t(i)+binSize)
+    t = t_end(:);
     f = smoothdata(binned/binSize,'gaussian',5*smooth); % factor 5 chosen to match previous behavior of Frequency
     frequency = [t f];
 	if strcmp(method,'adaptive')
