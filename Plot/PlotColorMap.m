@@ -18,7 +18,8 @@ function PlotColorMap(data,dimm,varargin)
 %     'x'           abscissae
 %     'y'           ordinates
 %     'threshold'   dimm values below this limit are zeroed (default = 0.01)
-%     'cutoffs'     lower and upper cutoff values ([] = autoscale, default)
+%     'cutoffs'     lower and upper cutoff values ([] = autoscale, default; NaNs
+%                   are also replaced by default values)
 %     'hgamma'      gamma-like correction for hue (1 = no correction, default)
 %     'bar'         draw a color bar (default = 'off'); if value isn't
 %                   'on' it's used as label for the bar
@@ -101,7 +102,7 @@ for i = 1:2:length(varargin)
 			end
 		case 'cutoffs'
 			cutoffs = varargin{i+1};
-			if ~isdvector(cutoffs,'#2','<') & ~isempty(cutoffs)
+			if ~isempty(cutoffs) && (~isvector(cutoffs) || numel(cutoffs) ~= 2 || ~any(isnan(cutoffs)) && cutoffs(1) <= cutoffs(2))
 				error('Incorrect value for property ''cutoffs'' (type ''help <a href="matlab:help PlotColorMap">PlotColorMap</a>'' for details).');
 			end
 		case 'hgamma'
@@ -112,7 +113,7 @@ for i = 1:2:length(varargin)
 			end
 		case 'gamma'
 			gamma = varargin{i+1};
-			if ~isdscalar(gamma,'>=0')
+            if ~isdscalar(gamma,'>=0')
 				error('Incorrect value for deprecated property ''gamma'' (type ''help <a href="matlab:help PlotColorMap">PlotColorMap</a>'' for details).');
             end
 		case 'bar'
@@ -128,7 +129,7 @@ for i = 1:2:length(varargin)
 			end
 		case 'ydir'
 			ydir = lower(varargin{i+1});
-			if ~isastring(ydir,'normal','reverse')
+            if ~isastring(ydir,'normal','reverse')
 				error('Incorrect value for property ''ydir'' (type ''help <a href="matlab:help PlotColorMap">PlotColorMap</a>'' for details).');
             end
         case 'piecewise'
@@ -149,13 +150,13 @@ y = y(:);
 if hg == 0
 	hgamma = 1/gamma;
 end
-if ~isempty(cutoffs)
-	m = cutoffs(1);
-	M = cutoffs(2);
-else
-	m = min(min(data));
-	M = max(max(data));
+default_cutoffs = [min(data,[],'all'),max(data,[],'all')];
+if isempty(cutoffs)
+    cutoffs = [NaN,NaN];
 end
+cutoffs(isnan(cutoffs)) = default_cutoffs(isnan(cutoffs));
+m = cutoffs(1);
+M = cutoffs(2);
 if m == M, M = m+1; end
 if isnan(m), m = 0; M = 1; end
 if length(dimm) == 1
