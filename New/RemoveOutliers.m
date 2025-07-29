@@ -17,4 +17,4 @@ d = q3-q1;
 
 isOutlier = bsxfun(@gt,data,q3+whisker*d) | bsxfun(@lt,data,q1-whisker*d);
 clean = data;
-clean(isOutlier) = nan;
+clean(isOutlier,:) = nan;
