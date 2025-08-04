@@ -71,15 +71,15 @@ function map = Map(v,z,varargin)
 % (at your option) any later version.
 
 % Check number of parameters
-if nargin < 2 | mod(length(varargin),2) ~= 0,
+if nargin < 2 | mod(length(varargin),2) ~= 0
     error('Incorrect number of parameters (type ''help <a href="matlab:help Map">Map</a>'' for details).');
 end
 
 % Check parameter sizes
-if size(v,2) < 2,
+if size(v,2) < 2
     error('Parameter ''[t x y]'' should have at least 2 columns (type ''help <a href="matlab:help Map">Map</a>'' for details).');
 end
-if (size(z,2) < 1 || size(z,2) > 2) && ~isempty(z),
+if (size(z,2) < 1 || size(z,2) > 2) && ~isempty(z)
     error('Parameter ''z'' should have 1 or 2 columns (type ''help <a href="matlab:help Map">Map</a>'' for details).');
 end
 
@@ -103,83 +103,87 @@ if isempty(v) || size(v,1) < 2, return; end
 
 % Some info about x, y and z
 pointProcess = (isempty(z) | size(z,2) == 1);
-if pointProcess,
+if ~pointProcess && var(z(:,2),'omitnan')==0
+    warning('The variance of the provided signal is zero. Are you sure you did not intend to call Map as a point process? Consider providing a single column input, e.g. spikes(:,1) instead of spikes(:,1:2).');
+end
+if pointProcess
     mode = modePointProcess;
 else
     mode = modeContinuous;
 end
+
 t = v(:,1);
 x = v(:,2);
-if size(v,2) >= 3,
+if size(v,2) >= 3
     y = v(:,3);
 else
     y = [];
 end
 
 % Parse parameter list
-for i = 1:2:length(varargin),
-    if ~ischar(varargin{i}),
+for i = 1:2:length(varargin)
+    if ~ischar(varargin{i})
         error(['Parameter ' num2str(i+2) ' is not a property (type ''help <a href="matlab:help Map">Map</a>'' for details).']);
     end
-    switch(lower(varargin{i})),
+    switch(lower(varargin{i}))
 
-        case 'smooth',
+        case 'smooth'
             smooth = varargin{i+1};
-            if ~isdvector(smooth,'>=0') || length(smooth) > 2,
+            if ~isdvector(smooth,'>=0') || length(smooth) > 2
                 error('Incorrect value for property ''smooth'' (type ''help <a href="matlab:help Map">Map</a>'' for details).');
             end
 
-        case 'nbins',
+        case 'nbins'
             nBins = varargin{i+1};
-            if ~isivector(nBins,'>0') || length(nBins) > 2,
+            if ~isivector(nBins,'>0') || length(nBins) > 2
                 error('Incorrect value for property ''nBins'' (type ''help <a href="matlab:help Map">Map</a>'' for details).');
             end
 
-        case 'mintime',
+        case 'mintime'
             minTime = varargin{i+1};
-            if ~isdscalar(minTime,'>=0'),
+            if ~isdscalar(minTime,'>=0')
                 error('Incorrect value for property ''minTime'' (type ''help <a href="matlab:help Map">Map</a>'' for details).');
             end
 
-        case 'maxgap',
+        case 'maxgap'
             maxGap = varargin{i+1};
-            if ~isdscalar(maxGap,'>=0'),
+            if ~isdscalar(maxGap,'>=0')
     			error('Incorrect value for property ''maxGap'' (type ''help <a href="matlab:help Map">Map</a>'' for details).');
             end
 
-        case 'maxdistance',
+        case 'maxdistance'
             maxDistance = varargin{i+1};
-            if ~isdscalar(maxDistance,'>=0'),
+            if ~isdscalar(maxDistance,'>=0')
     			error('Incorrect value for property ''maxDistance'' (type ''help <a href="matlab:help Map">Map</a>'' for details).');
             end
 
-        case 'mode',
+        case 'mode'
             mode = lower(varargin{i+1});
-            if ~isastring(mode,'interpolate','discard'),
+            if ~isastring(mode,'interpolate','discard')
                 error('Incorrect value for property ''mode'' (type ''help <a href="matlab:help Map">Map</a>'' for details).');
             end
 
-        case 'type',
+        case 'type'
             type = lower(varargin{i+1});
             if (isempty(y) && ~isastring(type,'cc','cl','lc','ll')) || (~isempty(y) && ~isastring(type,'ccl','cll','lcl','lll','ccc','clc','lcc','llc')),
                 error('Incorrect value for property ''type'' (type ''help <a href="matlab:help Map">Map</a>'' for details).');
             end
 
-        case 'limits',
+        case 'limits'
             limits = lower(varargin{i+1});
             if  ~isdvector(limits,'>=0') || length(limits) > 2
                 error('Incorrect value for property ''limits'' (type ''help <a href="matlab:help Map">Map</a>'' for details).');
             end
 
-        otherwise,
+        otherwise
             error(['Unknown property ''' num2str(varargin{i}) ''' (type ''help <a href="matlab:help Map">Map</a>'' for details).']);
 
     end
 end
 
 % Make sure x and y are normalized
-if max(x) > 1 || min(x) < 0 || ~isempty(limits),
-    if isempty(limits),
+if max(x) > 1 || min(x) < 0 || ~isempty(limits)
+    if isempty(limits)
         xLimits = [min(x) max(x)];
     else
         xLimits = [0 limits(1)]; 
@@ -188,9 +192,9 @@ if max(x) > 1 || min(x) < 0 || ~isempty(limits),
 else
     xLimits = [0 1];
 end
-if ~isempty(y),
-    if max(y) > 1 || min(y) < 0 || ~isempty(limits),
-        if isempty(limits),
+if ~isempty(y)
+    if max(y) > 1 || min(y) < 0 || ~isempty(limits)
+        if isempty(limits)
             yLimits = [min(y) max(y)];
         else
             yLimits = [0 limits(2)]; 
@@ -203,7 +207,7 @@ end
 
 % Number of bins for x and y
 nBinsX = nBins(1);
-if length(nBins) == 1,
+if length(nBins) == 1
     nBinsY = nBinsX;
     nBins(2) = nBins;
 else
@@ -212,26 +216,26 @@ end
 
 % Bin x and y
 x = Bin(x,[0 1],nBinsX);
-if ~isempty(y),
+if ~isempty(y)
     y = Bin(y,[0 1],nBinsY);
 end
 
 % Duration for each (X,Y) sample (clipped to maxGap)
 dt = diff(t);dt(end+1)=dt(end);dt(dt>maxGap) = maxGap;
 
-if pointProcess,
+if pointProcess
     % Count occurrences for each (x,y) timestamp
     n = CountInIntervals(z,[t t+dt]);
 else
     % Interpolate z at (x,y) timestamps
     [z,discarded] = Interpolate(z,t,'maxGap',maxGap);
     if isempty(z), return; end
-    if strcmp(type(end),'c'),
+    if strcmp(type(end),'c')
         range = isradians(z(:,2));
-        z(:,2) = exp(j*z(:,2));
+        z(:,2) = exp(1j*z(:,2));
     end
     % Interpolation may have discarded values from z (due to gaps): remove them from x, y and dt too
-    if any(discarded),
+    if any(discarded)
         x(discarded,:) = [];
         dt(discarded,:) = [];
         if ~isempty(y), y(discarded) = []; end
@@ -240,7 +244,7 @@ else
 end
 
 % Computations
-if isempty(y),
+if isempty(y)
     % 1D (only x)
     map.x = linspace(xLimits(1),xLimits(2),nBinsX);
     map.count = Accumulate(x,n,'size',nBinsX);
@@ -248,7 +252,7 @@ if isempty(y),
     valid = map.time > minTime;
     map.count = Smooth(Interpolate1(map.x,map.count,valid,mode,maxDistance),smooth,'type',type(1))';
     map.time = Smooth(Interpolate1(map.x,map.time,valid,mode,maxDistance),smooth,'type',type(1))';
-    if pointProcess,
+    if pointProcess
         map.z = map.count./(map.time+eps);
     else
         map.z = Accumulate(x,z(:,2),'size',nBinsX);
@@ -264,7 +268,7 @@ else
     valid = map.time > minTime;
     map.count = Smooth(Interpolate2(map.x,map.y,map.count,valid,mode,maxDistance),smooth,'type',type(1:2))';
     map.time = Smooth(Interpolate2(map.x,map.y,map.time,valid,mode,maxDistance),smooth,'type',type(1:2))';
-    if pointProcess,
+    if pointProcess
         map.z = map.count./(map.time+eps);
     else
         map.z = Accumulate([x y],z(:,2),'size',nBins);
@@ -279,7 +283,7 @@ if strcmp(type(end),'c'), map.z = wrap(angle(map.z),range); end
 
 
 % Interpolate or discard regions with insufficient sampling
-if strcmp(mode,'discard'),
+if strcmp(mode,'discard')
     map.z(map.time<=minTime) = 0;
 end
 
@@ -288,7 +292,7 @@ end
 % Interpolate if required (1D)
 function yint = Interpolate1(x,y,valid,mode,maxDistance)
 
-if strcmp(mode,'discard'),
+if strcmp(mode,'discard')
     yint = y;
 else
     yint = interp1(x(valid),y(valid),x);
@@ -297,7 +301,7 @@ end
 % Interpolate if required (2D)
 function zint = Interpolate2(x,y,z,valid,mode,maxDistance)
 
-if strcmp(mode,'discard'),
+if strcmp(mode,'discard')
     % In discard mode, do nothing
     zint = z;
 else
@@ -305,11 +309,11 @@ else
     d = DistanceTransform(valid);
     xx = repmat(x',1,length(y));
     yy = repmat(y,length(x),1);
-    if exist('scatteredInterpolant') == 2,
+    if exist('scatteredInterpolant') == 2
         F = scatteredInterpolant(xx(d==0),yy(d==0),z(d==0),'linear','nearest');
         zint = F(xx,yy);
     else
-        if any(imag(z(:))),
+        if any(imag(z(:)))
             Freal = TriScatteredInterp(xx(d==0),yy(d==0),real(z(d==0)));
             zintReal = Freal(xx,yy);
             Fimaginary = TriScatteredInterp(xx(d==0),yy(d==0),imag(z(d==0)));

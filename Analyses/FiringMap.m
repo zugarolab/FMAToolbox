@@ -76,11 +76,11 @@ function [map,stats] = FiringMap(positions,spikes,varargin)
 % (at your option) any later version.
 
 % Check number of parameters
-if nargin < 2,
+if nargin < 2
   error('Incorrect number of parameters (type ''help <a href="matlab:help FiringMap">FiringMap</a>'' for details).');
 end
 
-if size(positions,2) ~= 3,
+if size(positions,2) ~= 3
   warning('Parameter ''positions'' is not a Nx3 matrix - using the first light.');
   positions = positions(:,1:3);
 end
@@ -88,12 +88,12 @@ end
 im = 1;argsm = {};
 is = 1;argss = {};
 % Parse parameter list
-for i = 1:2:length(varargin),
-	if ~ischar(varargin{i}),
+for i = 1:2:length(varargin)
+	if ~ischar(varargin{i})
 		error(['Parameter ' num2str(i+2) ' is not a property (type ''help <a href="matlab:help FiringMap">FiringMap</a>'' for details).']);
 	end
-	switch(lower(varargin{i})),
-		case 'type',
+	switch(lower(varargin{i}))
+		case 'type'
 			argss{is} = 'type';
 			argss{is+1} = varargin{i+1}(1:2);
 			is = is+2;
@@ -104,15 +104,19 @@ for i = 1:2:length(varargin),
 			argss{is} = varargin{i};
 			argss{is+1} = varargin{i+1};
 			is = is+2;
-		otherwise,
+        otherwise
 			argsm{im} = varargin{i};
 			argsm{im+1} = varargin{i+1};
 			im = im+2;
   end
 end
 
+if size(spikes,2)>1
+    spikes = spikes(:,1); 
+    warning('''spikes'' is a matrix, but it is expected to be a vector of timestamps. Ignoring the second column...');
+end
 map = Map(positions,spikes,argsm{:});
-if nargout == 2,
+if nargout == 2
 	stats = MapStats(map,argss{:});
 end
 map.rate = map.z;
