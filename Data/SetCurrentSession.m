@@ -164,10 +164,13 @@ if isfile(behavior_file)
         event_descriptions = cellfun(@(x) {['beginning of ',x.name];['end of ',x.name]},behavior.epochs.sessions,UniformOutput=false).';
         event_descriptions = [event_descriptions{:}];
         DATA.events.description = event_descriptions(:);
+        flag = false;
     catch
         disp("... (could not load '" + behavior_file);
+        flag = true;
     end
     eventFiles = dir([path separator basename '.*.events.mat']); % look for CellExplorer event files
+    if flag, eventFiles = [eventFiles; dir([path separator basename '.cat.evt'])]; end % look for standard FMAT event files
 else
     eventFiles = dir([path separator basename '.*.evt']); % look for standard FMAT event files
 end
