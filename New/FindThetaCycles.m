@@ -46,7 +46,7 @@ function [peaktopeak,troughs, amplitude] = FindThetaCycles(lfp,varargin)
 %
 %    See also auto_theta_cycles, CleanLFP
 %
-% Copyright (C) 2018-2022 by Ralitsa Todorova
+% Copyright (C) 2018-2025 by Ralitsa Todorova
 %
 % This program is free software; you can redistribute it and/or modify
 % it under the terms of the GNU General Public License as published by
@@ -117,7 +117,8 @@ ok = CountInIntervals(nottheta, peaktopeak)==0 & ok;
 
 troughs = troughs(ok);
 peaktopeak = peaktopeak(ok,:);
-amplitude = amplitude(ok,2);
+[~,w] = InIntervals(amplitude(:,1),peaktopeak);
+amplitude = Accumulate(w(w>0),amplitude(w>0,2),'mode','max'); % the amplitude for each cycle
 
 
 % ------------------------------- Helper functions -------------------------------
