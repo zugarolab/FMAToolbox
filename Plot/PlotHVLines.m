@@ -18,34 +18,39 @@ function p = PlotHVLines(positions,direction,varargin)
 % the Free Software Foundation; either version 3 of the License, or
 % (at your option) any later version.
 
-if nargin < 1,
+if nargin < 1
  	error('Incorrect number of parameters (type ''help <a href="matlab:help PlotHVLines">PlotHVLines</a>'' for details).');
 end
-if nargin < 2,
+if nargin < 2
 	direction = 'v';
 else
 	direction = lower(direction);
 end
-if min(size(positions)) > 2,
+if min(size(positions)) > 2
  	error('List of abscissae/ordinates is not a vector (type ''help <a href="matlab:help PlotHVLines">PlotHVLines</a>'' for details).');
 else
 	positions = positions(:);
 end
 
-if ~isastring(direction,'h','v'),
+if ~isastring(direction,'h','v','b')
 	varargin = {direction,varargin{:}};
 	direction = 'v';
 end
 
+if strcmp(direction,'b') % both
+    PlotHVLines(positions,'h',varargin{:});
+    PlotHVLines(positions,'v',varargin{:});
+end
+
 hold on;
-if strcmp(direction,'v'),
+if strcmp(direction,'v')
 	yLim = ylim;
-	for i = 1:size(positions,1),
+	for i = 1:size(positions,1)
 		p = plot([positions(i,1) positions(i,1)],yLim,varargin{:});
 	end
 else
 	xLim = xlim;
-	for i = 1:size(positions,1),
+	for i = 1:size(positions,1)
 		p = plot(xLim,[positions(i,1) positions(i,1)],varargin{:});
 	end
 end
