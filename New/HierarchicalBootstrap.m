@@ -38,7 +38,10 @@ function [means,p] = HierarchicalBootstrap(data,varargin)
 %                   variables. Set to false if all data comes from a single
 %                   condition, in which case the function will assumes the last
 %                   column is the highest-level grouping variable rather
-%                   than a condition.    
+%                   than a condition.
+%     'output'      Set to 'cell' if the desired output is more than a
+%                   single number and can therefore not be fit in a matrix
+%                   (default = 'double').
 %    =========================================================================
 %
 %  OUTPUT
@@ -50,7 +53,7 @@ function [means,p] = HierarchicalBootstrap(data,varargin)
 %                   higher than the values of condition 2 after controlling
 %                   for the other nesting variables. When the number of
 %                   conditions provided is not 2, the p-value will instead
-%                   compare each of the bootstapped means to zero. 
+%                   compare each of the bootstapped means to zero.
 %
 % EXAMPLE
 %
@@ -82,6 +85,7 @@ nIterations = 1000;
 average = @nanmean; % change to nanmedian for testing if the group medians are different
 nColumns = 1;
 grouped = true;
+output = 'double';
 
 % Parse parameters
 for i = 1:2:length(varargin)
@@ -95,13 +99,18 @@ for i = 1:2:length(varargin)
                 builtin('error',['Incorrect value for property ''' varargin{i} ''' (type ''help <a href="matlab:help HierarchicalBootstrap">HierarchicalBootstrap</a>'' for details).']);
             end
         case {'fun','function','handle','average'}
-        	  average = varargin{i+1};
-        	  if ~isa(average,'function_handle')
-        	      builtin('error',['Incorrect value for property ''' varargin{i} ''' (type ''help <a href="matlab:help HierarchicalBootstrap">HierarchicalBootstrap</a>'' for details).']);
-              end
+            average = varargin{i+1};
+            if ~isa(average,'function_handle')
+                builtin('error',['Incorrect value for property ''' varargin{i} ''' (type ''help <a href="matlab:help HierarchicalBootstrap">HierarchicalBootstrap</a>'' for details).']);
+            end
         case {'ncolumns'}
             nColumns = varargin{i+1};
             if ~(isscalar(nColumns) && (nColumns>0) && nColumns<size(data,2)-1)
+                builtin('error',['Incorrect value for property ''' varargin{i} ''' (type ''help <a href="matlab:help HierarchicalBootstrap">HierarchicalBootstrap</a>'' for details).']);
+            end
+        case {'output','outputs'}
+            output = varargin{i+1};
+            if ~isastring(lower(output),'cell','double')
                 builtin('error',['Incorrect value for property ''' varargin{i} ''' (type ''help <a href="matlab:help HierarchicalBootstrap">HierarchicalBootstrap</a>'' for details).']);
             end
         case {'groups','group','grouped'}
@@ -117,33 +126,37 @@ for i = 1:2:length(varargin)
     end
 end
 
-% Remove empty groups (sessions, animals):
-for k=2:size(data,2)-1
-    [~,~,data(:,k)] = unique(data(:,k));
-end
-
 if ~grouped % "data" does not contain a condition column
     data(:,end+1) = 1; % add a "condition" in the last column of data.
 end
 
 nGroups = max(data(:,end));
 
-means = nan(nIterations, nGroups);
-
+if strcmp(output,'cell')
+    means = cell(nIterations, nGroups);
+else
+    means = nan(nIterations, nGroups);
+end
 
 % For each column, check if its indices appear in multiple conditions
 % This is so that a paired boostrap can be performed if appropriate.
 % Example: in a paired bootstrap, if in a given shuffle the bootstrap
 % ignores animal2, then the paired bootstrap will ignore it for all
 % conditions. This is undesirable if data are not paired: i.e. if
-% observations for animal2 only apply to one of the conditions. 
+% observations for animal2 only apply to one of the conditions.
 levels = nColumns+1:size(data,2)-1;
+
+% Remove empty groups (sessions, animals):
+for k=levels
+    [~,~,data(:,k)] = unique(data(:,k));
+end
+
 pairedBootstrap = false(size(levels));
 for i=1:length(levels)
     level=levels(i);
     percentUnique = mean(min(Accumulate(data(:,[level end])),[],2)==0);
     % If most of the cells appear in more than one condition, do a paired boostrap
-    if percentUnique<0.5, pairedBootstrap(i) = true; end 
+    if percentUnique<0.5, pairedBootstrap(i) = true; end
 end
 
 % Make a nested of cells for easier sampling:
@@ -157,18 +170,28 @@ for k = 1:nIterations
     end
     
     for j=1:nGroups
-        try
-            means(k,j) = average(resampled(resampled(:,end)==j,1:nColumns));
-        catch
-            means(k,j) = nan;
+        if strcmp(output,'cell')
+            try
+                means{k,j} = average(resampled(resampled(:,end)==j,1:nColumns));
+            catch
+                means{k,j} = nan;
+            end
+        else
+            try
+                means(k,j) = average(resampled(resampled(:,end)==j,1:nColumns));
+            catch
+                means(k,j) = nan;
+            end
         end
     end
 end
 
-if size(means,2)==2
-    p = mean(means(:,1)<means(:,2));
-else
-    p = mean(means<0);
+if ~strcmp(output,'cell') && nargout>1
+    if size(means,2)==2
+        p = mean(means(:,1)<means(:,2));
+    else
+        p = mean(means<0);
+    end
 end
 
 
@@ -191,7 +214,7 @@ end
 
 if ~pairedBootstrap(end)
     % skip the empty bins (no need to take animal2 when considering
-    % condition1 if there are no observations of animal2 in condition1). 
+    % condition1 if there are no observations of animal2 in condition1).
     ids = unique(data(:,end-1));
 else
     % we don't skip the empty bins if we want to keep the numbering for this
