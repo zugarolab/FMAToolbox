@@ -59,6 +59,12 @@ indices(indices<1 | query<min(u))=1;
 % Closest value to an overshooting query is the largest one in the reference list
 indices(indices>length(i) | query>max(u)) = length(i);
 
-indices = i(indices);
-values = reference(indices);
-indices = nonnans(indices);
+if ~any(isnan(indices))
+    indices = i(indices);
+    values = reference(indices);
+    indices = nonnans(indices);
+else
+    indices(~isnan(indices)) = i(indices(~isnan(indices)));
+    values = nan(size(indices)); values(~isnan(indices)) = reference(indices(~isnan(indices)));
+    indices(~isnan(indices)) = nonnans(indices(~isnan(indices)));
+end
