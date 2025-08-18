@@ -1,6 +1,6 @@
-function varargout = semplot(varargin,opt)
+function varargout = semplot(x,y,color,solid,smooth,opt)
 
-%semplot - Plot mean (line) +/- s.e.m. (shaded area) of a matrix "y"
+%semplot - Plot mean (line) +/- s.e.m. (shaded area) of a matrix 'y'
 %
 %  USAGE
 %
@@ -44,36 +44,31 @@ function varargout = semplot(varargin,opt)
 % the Free Software Foundation; either version 3 of the License, or
 % (at your option) any later version.
 
-arguments (Repeating)
-    varargin
-end
 arguments
-    opt.mode (1,1) string {mustBeMember(opt.mode,["sem","std"])} = 'sem'
-    opt.smooth (1,1) {mustBeNumeric,mustBeNonnegative} = 0
-    opt.solid (1,1) {mustBeMember(opt.solid,[0,1])} = false
+    x
+    y = []
+    color = [0,0,0]
+    solid = false
+    smooth = 0
+    opt.mode (1,1) string {mustBeMember(opt.mode,["sem","std"])} = "sem"
+    opt.smooth {mustBeScalarOrEmpty} = []
+    opt.solid {mustBeLogicalScalarOrEmpty} = []
     opt.faceColor (:,:) = NaN
-    opt.legend (1,1) string = 'on'
+    opt.legend (1,1) string = "on"
     opt.lineProp (:,1) cell = {}
     opt.patchProp (:,1) cell = {}
 end
 
 % retrocompatibility: syntax semplot(x,y,color,smooth,solid) used to be accepted
-% varargin is thus necessary
 try
-    [x,y,color,opt.smooth,opt.solid,opt.faceColor] = parseSemplot(varargin,opt);
+    [x,y,color,solid,smooth,opt] = parseSemPlot(x,y,color,solid,smooth,nargin,opt);
 catch ME
     throw(ME)
 end
 
-% convert colors like 'k' to RGB triplet
-try
-    opt.faceColor = validatecolor(opt.faceColor);
-catch ME
-    throw(ME)
-end
 % set default values
-if opt.solid
-    opt.color = mean([opt.faceColor;1 1 1]);
+if solid
+    opt.faceColor = mean([opt.faceColor;1 1 1]);
     faceAlpha = 1;
 else
     faceAlpha = 0.5;
@@ -81,7 +76,16 @@ end
 
 % if only one value per ascissa is given
 if isvector(y)
-    handles = plot(x,Smooth(y,opt.smooth),'color',color);
+    try
+        if opt.charColor
+            handles = plot(x,Smooth(y,smooth),color,'linewidth',2,opt.lineProp{:});
+        else
+            handles = plot(x,Smooth(y,smooth),'color',color,'linewidth',2,opt.lineProp{:});
+        end
+    catch ME
+        % catch invalid color
+        throw(ME)
+    end
     if opt.legend == "off"
         RemoveFromLegend(handles)
     elseif opt.legend ~= "on"
@@ -106,18 +110,32 @@ if opt.mode == "sem"
 else
     y_area = std(y,'omitnan');
 end
-yy = [Smooth(y_mean-y_area.',opt.smooth); Smooth(flipud(y_mean+y_area.'),opt.smooth)];
-y_mean = Smooth(y_mean,opt.smooth);
+yy = [Smooth(y_mean-y_area.',smooth); Smooth(flipud(y_mean+y_area.'),smooth)];
+y_mean = Smooth(y_mean,smooth);
 
 % plot shaded area
-handles = fill(xx,yy,opt.faceColor,'EdgeAlpha',0,'FaceAlpha',faceAlpha,opt.patchProp{:});
+try
+    handles = fill(xx,yy,opt.faceColor,'EdgeAlpha',0,'FaceAlpha',faceAlpha,opt.patchProp{:});
+catch ME
+    % catch invalid color
+    throw(ME)
+end
 if opt.legend ~= "on"
     handles.Annotation.LegendInformation.IconDisplayStyle = 'off';
 end
 
 % plot line
 hold on
-h = plot(x,y_mean,'color',color,'linewidth',2,opt.lineProp{:});
+try
+    if opt.charColor
+        h = plot(x,y_mean,color,'linewidth',2,opt.lineProp{:});
+    else
+        h = plot(x,y_mean,'color',color,'linewidth',2,opt.lineProp{:});
+    end
+catch ME
+    % catch invalid color
+    throw(ME)
+end
 if opt.legend == "off"
     RemoveFromLegend(h)
 elseif opt.legend ~= "on"
@@ -130,99 +148,68 @@ end
 
 % --- helper functions ---
 
-function [x,y,color,smooth,solid,faceColor] = parseSemplot(args,opt)
-    % automatic handling of Name-Value Arguments removes from varargin all valid property-value pairs* and
-    % stores them in the struct opt
-    % this function checks the validity of remaining arguments and assigns default valus
-    %
-    % * the only case when this is not true is if the user specified an invalid property name
+function [x,y,color,solid,smooth,opt] = parseSemPlot(x,y,color,solid,smooth,n,opt)
 
-    narg = numel(args);
+% this f identifies the used syntax and validates inputs
+% allowed syntaxes:
+%   semplot(y,<color>,<solid>,<smooth>,<opt>) % only if color is text (like 'r')
+%   semplot(x,y,<color>,<solid>,<smooth>,<opt>)
+% specifying  'solid',<value>  always overrides  <solid>, as for 'smooth'
 
-    % minimun accepted number of arguments is 1
-    if narg < 1
-        error('semplot:arguments','Invalid argument list. Function requires 1 more input.')
+if n < 2
+    % syntax: semplot(y)
+    % set default x
+    y = x;
+    x = (1 : size(y,2)).';
+elseif ischar(y) || isstring(y)
+    % syntax: semplot(y,color,...)
+    % set default x, use given char color
+    if n > 4
+        error('semplot:nArgs','1 to 4 positional arguments allowed when omitting argument ''x''')
     end
-
-    % set default values
-    color = [0,0,0];
-    smooth = opt.smooth;
-    solid = opt.solid;
-    faceColor = opt.faceColor;
-
-    % parse arguments
-    x = args{1};
-    ind = 3; % index of next element of varargin to parse
-    if narg < 2
-        % set default x
-        y = x;
-        x = (1:size(y,2)).';
-    elseif ischar(args{2}) || isstring(args{2})
-        % set default x, use given char color
-        color = args{2};
-        y = x;
-        x = (1:size(y,2)).';
-    else
-        if ~isvector(x)
-            error('semplot:xSize','X must be a vector');
-        end
-        if size(x,2) ~= 1
-            x = x.';
-        end
-        y = args{2};
+    if n > 3, smooth = solid; end
+    if n > 2, solid = color; end
+    color = y;
+    y = x;
+    x = (1 : size(y,2)).';
+else
+    % syntax: semplot(x,y,...)
+    if ~isvector(x)
+        error('semplot:xSize','Argument ''x'' must be a vector');
+    end
+    if size(x,2) ~= 1
+        x = x.';
+    end
+    if size(y,2) ~= length(x)
+        y = y.';
         if size(y,2) ~= length(x)
-            y = y.';
-            if size(y,2) ~= length(x)
-                error('Y must have one column for each element in X');
-            end
-        end
-        if narg > 2
-            % use given color, unless it's a valid property name
-            if (~ischar(args{3}) && ~isstring(args{3})) || ~ismember(args{3},fieldnames(opt))
-                color = args{3};
-                ind = 4;
-            end
+            error('semplot:ySize','Argument ''y'' must have one column for each element in ''x''');
         end
     end
+end
 
-    if any(isnan(faceColor),'all')
-        % NaN signals to match value of color
-        faceColor = color;
-    end
+% syntax of plot is different if color is a LineSpec (as '-.r'), this flag allows to call plot correctly
+opt.charColor = ischar(color) || isstring(color);
 
-    % if any string (even a valid property) is left in varargin, one of the  properties was invalid
-    bad_property = 0; % index of invalid property
-    if narg >= ind
-        if isastring(args{ind})
-            bad_property = ind;
-        elseif ~isscalar(args{ind}) || ~isnumeric(args{ind}) || args{ind} < 0
-            error('semplot:smoothValue','Incorrect value for property ''smooth'' (type ''help <a href="matlab:help semplot">semplot</a>'' for details).')
-        end
-        opt.smooth = args{ind};
-        ind = ind + 1;
-    end
-    if ~bad_property && narg >= ind
-        if isastring(args{ind})
-            bad_property = ind;
-        elseif ~isscalar(args{ind}) || ~islogical(args{ind})
-            error('semplot:solidValue','Incorrect value for property ''solid'' (type ''help <a href="matlab:help semplot">semplot</a>'' for details).')
-        end
-        opt.solid = args{ind};
-        ind = ind + 1;
-    end
+% property-value pairs for 'solid' and 'smooth' have precedence over positional arguments
+if ~isempty(opt.solid)
+    solid = opt.solid;
+end
+try
+    solid = GeneralLogical(solid);
+catch
+    error('Invalid value for argument ''solid''. Value must be logical.')
+end
+if ~isempty(opt.smooth)
+    smooth = opt.smooth;
+end
+if ~isscalar(smooth) || ~isnumeric(smooth) || smooth < 0
+    error('Invalid value for argument ''smooth''. Value must be non-negative scalar.')
+end
 
-    % if an invalid property was detected, error accordingly
-    % the following doesn't error if the bad property has a valid name (e.g., a valid property written twice), in which case the last control will error
-    if bad_property
-        for i = bad_property : 2 : numel(args)
-            if ~ismember(args{i},fieldnames(opt))
-                error('semplot:unknownArgument',"Unknown property '"+args{i}+"' (type 'help <a href=""matlab:help semplot"">semplot</a>' for details).");
-            end
-        end
-    end
+if any(isnan(opt.faceColor),'all')
+    % NaN signals to match value of 'color'
+    opt.faceColor = color;
+end
 
-    % if any argument is left, it must be an invalid property
-    if bad_property || narg >= ind
-        error('semplot:unknownArgument',"Invalid value in position "+num2str(min(ind,bad_property))+" (type 'help <a href=""matlab:help semplot"">semplot</a>' for details).");
-    end
 end

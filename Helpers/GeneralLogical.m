@@ -1,6 +1,17 @@
-function mustBeLogical(A)
-%MUSTBELOGICAL Validate that value is logical
-%   MUSTBELOGICAL(A) throws an error if A contains values different from 0 and 1 (or from "off" and "on").
+function value = GeneralLogical(a)
+
+%GeneralLogical - Cast input to logical array
+%
+%  USAGE
+%
+%    value = GeneralLogical(a)
+%
+%    a               generalized logical: can take values in:
+%                    [true, false, 1, 0, "on", "off"]
+%
+%  OUTPUT
+%
+%    value           converted input
 
 % Copyright (C) 2025 by Pietro Bozzo
 %
@@ -9,18 +20,22 @@ function mustBeLogical(A)
 % the Free Software Foundation; either version 3 of the License, or
 % (at your option) any later version.
 
-if ischar(A)
-    A = string(A);
+value = a;
+
+if ischar(a)
+    a = string(a);
 end
 
-if isstring(A)
-    if ~all(A(A~="off") == "on")
+if isstring(a)
+    if ~all(a(a~="off") == "on")
         error('mustBeLogical:notLogical','Value must be logical.')
     end
-elseif isnumeric(A)
-    if ~all(A(A~=0) == 1)
+    value = a == "on";
+elseif isnumeric(a)
+    if ~all(a(a~=0) == 1)
         error('mustBeLogical:notLogical','Value must be logical.')
     end
-elseif ~islogical(A)
+    value = a ~= 0;
+elseif ~islogical(a)
     error('mustBeLogical:notLogical','Value must be logical.')
 end
