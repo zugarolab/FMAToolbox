@@ -61,29 +61,21 @@ end
 
 % retrocompatibility: syntax semplot(x,y,color,smooth,solid) used to be accepted
 try
-    [x,y,color,solid,smooth,opt] = parseSemPlot(x,y,color,solid,smooth,nargin,opt);
+    [x,y,color,smooth,opt] = parseSemPlot(x,y,color,solid,smooth,nargin,opt);
 catch ME
     throw(ME)
-end
-
-% set default values
-if solid
-    opt.faceColor = mean([opt.faceColor;1 1 1]);
-    faceAlpha = 1;
-else
-    faceAlpha = 0.5;
 end
 
 % if only one value per ascissa is given
 if isvector(y)
     try
-        if opt.charColor
+        if opt.isLineSpec
             handles = plot(x,Smooth(y,smooth),color,'linewidth',2,opt.lineProp{:});
         else
             handles = plot(x,Smooth(y,smooth),'color',color,'linewidth',2,opt.lineProp{:});
         end
     catch ME
-        % catch invalid color
+        % catch invalid LineSpec
         throw(ME)
     end
     if opt.legend == "off"
@@ -115,9 +107,9 @@ y_mean = Smooth(y_mean,smooth);
 
 % plot shaded area
 try
-    handles = fill(xx,yy,opt.faceColor,'EdgeAlpha',0,'FaceAlpha',faceAlpha,opt.patchProp{:});
+    handles = fill(xx,yy,opt.faceColor,'EdgeAlpha',0,'FaceAlpha',opt.faceAlpha,opt.patchProp{:});
 catch ME
-    % catch invalid color
+    % catch invalid LineSpec
     throw(ME)
 end
 if opt.legend ~= "on"
@@ -127,13 +119,12 @@ end
 % plot line
 hold on
 try
-    if opt.charColor
+    if opt.isLineSpec
         h = plot(x,y_mean,color,'linewidth',2,opt.lineProp{:});
     else
         h = plot(x,y_mean,'color',color,'linewidth',2,opt.lineProp{:});
     end
 catch ME
-    % catch invalid color
     throw(ME)
 end
 if opt.legend == "off"
@@ -148,7 +139,7 @@ end
 
 % --- helper functions ---
 
-function [x,y,color,solid,smooth,opt] = parseSemPlot(x,y,color,solid,smooth,n,opt)
+function [x,y,color,smooth,opt] = parseSemPlot(x,y,color,solid,smooth,n,opt)
 
 % this f identifies the used syntax and validates inputs
 % allowed syntaxes:
@@ -188,8 +179,16 @@ else
     end
 end
 
+% validate color
+if ischar(color), color = string(color); end
+if isstring(color) && ~isscalar(color)
+    error('Invalid value for argument ''color''.')
+end
 % syntax of plot is different if color is a LineSpec (as '-.r'), this flag allows to call plot correctly
-opt.charColor = ischar(color) || isstring(color);
+opt.isLineSpec = isstring(color) && strlength(strjoin(regexp(color,'[0-9a-zA-z#]','split'),'')) ~= 0;
+if ~opt.isLineSpec
+    color = validatecolor(color);
+end
 
 % property-value pairs for 'solid' and 'smooth' have precedence over positional arguments
 if ~isempty(opt.solid)
@@ -210,6 +209,20 @@ end
 if any(isnan(opt.faceColor),'all')
     % NaN signals to match value of 'color'
     opt.faceColor = color;
+else
+    opt.faceColor = validatecolor(opt.faceColor);
+end
+
+% set default value
+if solid
+    if opt.isLineSpec
+        error('Setting a LineSpec value for ''color'' when ''solid'' is true is not supported.')
+    end
+    opt.faceColor = validatecolor(opt.faceColor);
+    opt.faceColor = mean([opt.faceColor;1 1 1]);
+    opt.faceAlpha = 1;
+else
+    opt.faceAlpha = 0.5;
 end
 
 end
