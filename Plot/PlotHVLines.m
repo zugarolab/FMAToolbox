@@ -1,4 +1,4 @@
-function p = PlotHVLines(positions,direction,varargin)
+function varargout = PlotHVLines(positions,direction,varargin)
 
 %PlotHVLines - Plot vertical (resp. horizontal) lines at listed x (resp. y).
 %
@@ -53,4 +53,8 @@ else
 	for i = 1:size(positions,1)
 		p = plot(xLim,[positions(i,1) positions(i,1)],varargin{:});
 	end
+end
+
+if nargout>0
+    varargout{1} = p;
 end
