@@ -87,7 +87,7 @@ global DATA;
 separator = filesep;
 
 % Initialization
-if isempty(DATA) || ~isfield(DATA,'session') || ~isfield(DATA.session,'path') || ~isfield(DATA.session,'basename')
+if isempty(DATA) || ~isfield(DATA,'session') || ~isfield(DATA.session,'basepath') || ~isfield(DATA.session,'basename')
 	format long g;
 	DATA.session.basename = '';
 	DATA.session.path = '';
@@ -112,28 +112,28 @@ end
 
 if isempty(filename) || (strcmp(filename,'same') && isempty(DATA.session.basename))
 	% Interactive mode
-	[filename,path] = uigetfile('*.xml','Please select a parameter file for this session');
+	[filename,basepath] = uigetfile('*.xml','Please select a parameter file for this session');
 	if filename == 0,return; end
-	filename = [path filename];
+	filename = [basepath filename];
 end
 
 if strcmp(filename,'same')
 	% Force reload
-	path = DATA.session.path;
+	basepath = DATA.session.basepath;
 	basename = DATA.session.basename;
 else
 	% Parse file name
-	[path,basename] = fileparts(filename);
-	if isempty(path)
-        path = pwd;
+	[basepath,basename] = fileparts(filename);
+	if isempty(basepath)
+        basepath = pwd;
 	else
-		if ~isfolder(path)
-			error(['Directory ''' path ''' does not exist.']);
+		if ~isfolder(basepath)
+			error(['Directory ''' basepath ''' does not exist.']);
 		end
-		% Clean path (e.g., simplify ../ or ./ substrings) and make it absolute
+		% Clean basepath (e.g., simplify ../ or ./ substrings) and make it absolute
 		here = pwd;
-		cd(path);
-		path = pwd;
+		cd(basepath);
+		basepath = pwd;
 		cd(here);
 	end
 end
@@ -141,20 +141,35 @@ end
 if verbose, disp(['Loading session files for ' basename]); end
 
 % File already loaded?
-if strcmp(basename,DATA.session.basename) && strcmp(path,DATA.session.path) && ~strcmp(filename,'same')
+if strcmp(basename,DATA.session.basename) && strcmp(basepath,DATA.session.basepath) && ~strcmp(filename,'same')
 	disp('... session files already loaded, skipping - type SetCurrentSession(''same'') to force reload');
 	verbose && fprintf(1,'Done\n');
 	return
 end
 
 % Parameter file
-DATA = LoadParameters([path separator basename '.xml']);
-if verbose, disp(['... loaded parameter file ''' basename '.xml''']); end
+session_file = [basepath separator basename '.session.mat']; % CellExplorer file
+if isfile(session_file)
+    verbose && fprintf(1,['... detected session file ''' basename '.session.mat''\n']);
+    load(session_file,'session')
+    DATA.session.path = basepath;
+    DATA.session.name = basename;
+    groups = session.extracellular.spikeGroups.channels;
+    DATA.spikeGroups.nGroups = numel(groups);
+    DATA.spikeGroups.groups = groups;
+    try DATA.nChannels = session.extracellular.nChannels; end
+    try fun = @(x) str2double(x(ismember(x,'0123456789'))); DATA.nBits = fun(session.extracellular.precision); end
+    try DATA.rates.lfp = session.extracellular.srLfp; end
+    try DATA.rates.wideband = session.extracellular.sr; end
+else
+    DATA = LoadParameters([basepath separator basename '.xml']);
+    if verbose, disp(['... loaded parameter file ''' basename '.xml''']); end
+end
 
 % Event file(s)
 DATA.events.time = [];
 DATA.events.description = {};
-behavior_file = [path separator basename '.animal.behavior.mat']; % CellExplorer file
+behavior_file = [basepath separator basename '.animal.behavior.mat']; % CellExplorer file
 if isfile(behavior_file)
     verbose && fprintf(1,['... detected event file ''' basename '.animal.behavior.mat''\n']);
     try
@@ -169,14 +184,14 @@ if isfile(behavior_file)
         disp("... (could not load '" + behavior_file);
         flag = true;
     end
-    eventFiles = dir([path separator basename '.*.events.mat']); % look for CellExplorer event files
-    if flag, eventFiles = [eventFiles; dir([path separator basename '.cat.evt'])]; end % look for standard FMAT event files
+    eventFiles = dir([basepath separator basename '.*.events.mat']); % look for CellExplorer event files
+    if flag, eventFiles = [eventFiles; dir([basepath separator basename '.cat.evt'])]; end % look for standard FMAT event files
 else
-    eventFiles = dir([path separator basename '.*.evt']); % look for standard FMAT event files
+    eventFiles = dir([basepath separator basename '.*.evt']); % look for standard FMAT event files
 end
 if ~isempty(eventFiles)
 	for i = 1 : length(eventFiles)
-		events = LoadEvents([path separator eventFiles(i).name]);
+		events = LoadEvents([basepath separator eventFiles(i).name]);
         if ~isempty(events.time)
 	        DATA.events.time = [DATA.events.time;events.time];
 		    DATA.events.description = [DATA.events.description;events.description];
@@ -191,14 +206,14 @@ end
 
 % Position file
 DATA.positions = [];
-if exist([path separator basename '.pos'],'file')
-	DATA.positions = LoadPositions([path separator basename '.pos'],DATA.rates.video);
+if exist([basepath separator basename '.pos'],'file')
+	DATA.positions = LoadPositions([basepath separator basename '.pos'],DATA.rates.video);
 	if verbose, disp(['... loaded position file ''' basename '.pos''']); end
-elseif exist([path separator basename '.whl'],'file')
-	DATA.positions = LoadPositions([path separator basename '.whl'],DATA.rates.video);
+elseif exist([basepath separator basename '.whl'],'file')
+	DATA.positions = LoadPositions([basepath separator basename '.whl'],DATA.rates.video);
 	if verbose, disp(['... loaded position file ''' basename '.whl''']); end
-elseif exist([path separator basename '.mqa'],'file')
-	DATA.positions = LoadPositions([path separator basename '.mqa'],DATA.rates.video);
+elseif exist([basepath separator basename '.mqa'],'file')
+	DATA.positions = LoadPositions([basepath separator basename '.mqa'],DATA.rates.video);
 	if verbose, disp(['... loaded position file ''' basename '.mqa''']); end
 else
 	verbose && fprintf(1,'... (no position file found)\n');
@@ -207,7 +222,7 @@ end
 % Spike files
 if strcmp(spikes,'on')
     DATA.spikes = [];
-    filename = [path separator basename '.cell_metrics.cellinfo.mat'];
+    filename = [basepath separator basename '.cell_metrics.cellinfo.mat'];
     load_clu = true;
     if isfile(filename)
         verbose && fprintf(1,['... detected spike file ''' basename '.cell_metrics.cellinfo.mat''\n']);
@@ -218,6 +233,9 @@ if strcmp(spikes,'on')
             unit_group = repelem(cell_metrics.shankID.',n_spikes_per_unit,1);
             unit_cluster = repelem(cell_metrics.cluID.',n_spikes_per_unit,1);
             DATA.spikes = [spike_times,unit_group,unit_cluster];
+            DATA.spikeGroups.nSamples = repmat(numel(cell_metrics.waveforms.time{1}),1,DATA.spikeGroups.nGroups);
+            [~,ind] = min(abs(cell_metrics.waveforms.time{1}));
+            DATA.spikeGroups.peakSample = repmat(ind,1,DATA.spikeGroups.nGroups);
             load_clu = false;
         catch
             disp("... (could not load '" + basename + ".cell_metrics.cellinfo.mat')");
@@ -225,7 +243,7 @@ if strcmp(spikes,'on')
     end
     if load_clu
         for i = 1 : DATA.spikeGroups.nGroups
-            filename = [path separator basename '.clu.' int2str(i)];
+            filename = [basepath separator basename '.clu.' int2str(i)];
             if exist(filename,'file')
                 try
                 	DATA.spikes = [DATA.spikes;LoadSpikeTimes(filename,DATA.rates.wideband)];
@@ -252,6 +270,6 @@ end
 
 % This is updated only once the files have been properly loaded
 DATA.session.basename = basename;
-DATA.session.path = path;
+DATA.session.basepath = basepath;
 
 verbose && fprintf(1,'Done\n');
