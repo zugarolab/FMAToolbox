@@ -155,7 +155,7 @@ function batch = StartBatch(mfile,bfile,varargin)
 
 % Default values
 delay = 0;
-hide = 'on';
+hide = 'off';
 log = '';
 
 % Check number of parameters
