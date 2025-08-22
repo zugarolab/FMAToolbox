@@ -121,6 +121,10 @@ if isastring(style,'bars') && ~isastring(legendValue,'on','off')
     error('Incorrect value for property ''legend'' (type ''help <a href="matlab:help PlotIntervals">PlotIntervals</a>'' for details).');
 end
 
+if isempty(intervals)
+    return
+end
+
 hold on;
 xLim = xlim;
 if strcmp(style,'bars')
