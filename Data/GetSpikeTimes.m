@@ -148,11 +148,11 @@ elseif ~isempty(session)
     spike_times = vertcat(cell_metrics.spikes.times{:});
     n_spikes_per_unit = cellfun(@(x) size(x,1),cell_metrics.spikes.times).';
     unit_group = repelem(cell_metrics.shankID.',n_spikes_per_unit,1);
+    unit_cluster = repelem(cell_metrics.cluID.',n_spikes_per_unit,1);
     if strcmp(output,'cellexplorer')
         unit_id = repelem(cell_metrics.cellID.',n_spikes_per_unit,1);
         spikes = [spike_times,unit_group,unit_id];
     else
-        unit_cluster = repelem(cell_metrics.cluID.',n_spikes_per_unit,1);
         spikes = [spike_times,unit_group,unit_cluster];
     end
 else
@@ -161,6 +161,7 @@ else
 	    error('No session defined (did you forget to call SetCurrentSession? Type ''help <a href="matlab:help Data">Data</a>'' for details).');
     end
     spikes = DATA.spikes;
+    unit_cluster = spikes(:,3);
 end
 
 % Adjust output matrix size
@@ -185,7 +186,7 @@ if ~isastring(units,'all')
 		cluster = units(i,2);
         if cluster >= 0
             % keep [group, cluster] combination
-            selected = selected | (spikes(:,2) == group & spikes(:,3) == cluster);
+            selected = selected | (spikes(:,2) == group & unit_cluster == cluster);
         elseif strcmp(output,'cellexplorer')
             % no clusters must be excluded, as noise and MUA aren't present in CellExplorer
             selected = selected | spikes(:,2) == group; 
