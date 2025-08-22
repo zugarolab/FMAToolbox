@@ -113,7 +113,7 @@ end
 if isempty(filename) || (strcmp(filename,'same') && isempty(DATA.session.basename))
 	% Interactive mode
 	[filename,basepath] = uigetfile('*.xml','Please select a parameter file for this session');
-	if filename == 0,return; end
+	if filename == 0, return; end
 	filename = [basepath filename];
 end
 
@@ -138,7 +138,7 @@ else
 	end
 end
 
-if verbose, disp(['Loading session files for ' basename]); end
+verbose && fprintf(1,['Loading session files for ' basename '\n']);
 
 % File already loaded?
 if strcmp(basename,DATA.session.basename) && strcmp(basepath,DATA.session.basepath) && ~strcmp(filename,'same')
@@ -148,7 +148,7 @@ if strcmp(basename,DATA.session.basename) && strcmp(basepath,DATA.session.basepa
 end
 
 % Parameter file
-session_file = [basepath separator basename '.session.mat']; % CellExplorer file
+session_file = [basepath separator basename '.session.mat']; % CellExplorer session.mat file
 if isfile(session_file)
     verbose && fprintf(1,['... detected session file ''' basename '.session.mat''\n']);
     load(session_file,'session')
@@ -156,14 +156,19 @@ if isfile(session_file)
     DATA.session.name = basename;
     groups = session.extracellular.spikeGroups.channels;
     DATA.spikeGroups.nGroups = numel(groups);
-    DATA.spikeGroups.groups = groups;
+    DATA.spikeGroups.groups = cellfun(@(x) x-1,groups,UniformOutput=false); % remove 1 to match .xml fil convention
     try DATA.nChannels = session.extracellular.nChannels; end
     try fun = @(x) str2double(x(ismember(x,'0123456789'))); DATA.nBits = fun(session.extracellular.precision); end
     try DATA.rates.lfp = session.extracellular.srLfp; end
     try DATA.rates.wideband = session.extracellular.sr; end
+    % video information is missing in CellExplorer session.mat file
+    DATA.rates.video = 0;
+	DATA.maxX = 0;
+	DATA.maxY = 0;
+	disp('... warning: missing video parameters (set to zero)');
 else
     DATA = LoadParameters([basepath separator basename '.xml']);
-    if verbose, disp(['... loaded parameter file ''' basename '.xml''']); end
+    verbose && fprintf(1,['... loaded parameter file ''' basename '.xml''\n']);
 end
 
 % Event file(s)
@@ -179,13 +184,13 @@ if isfile(behavior_file)
         event_descriptions = cellfun(@(x) {['beginning of ',x.name];['end of ',x.name]},behavior.epochs.sessions,UniformOutput=false).';
         event_descriptions = [event_descriptions{:}];
         DATA.events.description = event_descriptions(:);
-        flag = false;
+        error_flag = false;
     catch
         disp("... (could not load '" + behavior_file);
-        flag = true;
+        error_flag = true;
     end
     eventFiles = dir([basepath separator basename '.*.events.mat']); % look for CellExplorer event files
-    if flag, eventFiles = [eventFiles; dir([basepath separator basename '.cat.evt'])]; end % look for standard FMAT event files
+    if error_flag, eventFiles = [eventFiles; dir([basepath separator basename '.cat.evt'])]; end % add FMAT .cat.evt file
 else
     eventFiles = dir([basepath separator basename '.*.evt']); % look for standard FMAT event files
 end
@@ -195,7 +200,7 @@ if ~isempty(eventFiles)
         if ~isempty(events.time)
 	        DATA.events.time = [DATA.events.time;events.time];
 		    DATA.events.description = [DATA.events.description;events.description];
-	        if verbose, disp(['... loaded event file ''' eventFiles(i).name '''']); end
+	        verbose && fprintf(1,['... loaded event file ''' eventFiles(i).name '''\n']);
         end
 	end
 	[DATA.events.time,ind] = sortrows(DATA.events.time);
