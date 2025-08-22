@@ -23,6 +23,7 @@ function [samples, originalIndex, intervalID] = Restrict(samples,intervals,varar
 %     Properties    Values
 %    -------------------------------------------------------------------------
 %     'shift'       shift remaining epochs together in time (default = 'off')
+%     'verbose'     if 'on' (default), display warning for empty inputs
 %    =========================================================================
 %
 %  NOTE
@@ -43,6 +44,7 @@ function [samples, originalIndex, intervalID] = Restrict(samples,intervals,varar
 
 % Default values
 shift = 'off';
+verbose = true;
 transpose = false;
 try samples(isnan(samples(:,1)),:) = []; end
 
@@ -58,12 +60,6 @@ if ~isdmatrix(intervals) || size(intervals,2) ~= 2
   error('Incorrect intervals (type ''help <a href="matlab:help Restrict">Restrict</a>'' for details).');
 end
 
-if isempty(intervals)
-    samples = []; originalIndex = []; intervalID = [];
-    disp('Restriction over empty intervals.');
-    return
-end
-
 if size(samples,1) == 1
 	samples = samples(:);
     transpose = true;
@@ -74,20 +70,35 @@ for i = 1:2:length(varargin)
 	if ~ischar(varargin{i})
 		error(['Parameter ' num2str(i+2) ' is not a property (type ''help <a href="matlab:help Restrict">Restrict</a>'' for details).']);
 	end
-	switch(lower(varargin{i}))
+	switch lower(varargin{i})
 		case 'shift'
 			shift = varargin{i+1};
             if ~isastring(shift,'on','off')
                 error('Incorrect value for property ''shift'' (type ''help <a href="matlab:help Restrict">Restrict</a>'' for details).');
+            end
+        case 'verbose'
+            verbose = varargin{i+1};
+            if isastring(verbose,'on','off')
+                verbose = strcmp(verbose,'on');
+            else
+                if ~isscalar(verbose) || ~(isnumeric(verbose) || islogical(verbose)) || ~ismember(verbose,[1,0])
+                    error('Incorrect value for property ''verbose'' (type ''help <a href="matlab:help Restrict">Restrict</a>'' for details).');
+                end
             end
         otherwise
 			error(['Unknown property ''' num2str(varargin{i}) ''' (type ''help <a href="matlab:help Restrict">Restrict</a>'' for details).']);
 	end
 end
 
+if isempty(intervals)
+    samples = []; originalIndex = []; intervalID = [];
+    verbose && fprintf(1,'Restriction over empty intervals.');
+    return
+end
+
 if isempty(samples)
     samples = []; originalIndex = []; intervalID = [];
-    disp('No samples to restrict.');
+    verbose && fprintf('No samples to restrict.');
     return
 end
 
