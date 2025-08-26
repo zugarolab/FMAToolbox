@@ -42,42 +42,48 @@ function [consolidated,target] = ConsolidateIntervals(intervals,varargin)
 strict = 'off';
 epsilon = 0;
 
-if nargin < 1,
+if nargin < 1
   error('Incorrect number of parameters (type ''help <a href="matlab:help ConsolidateIntervals">ConsolidateIntervals</a>'' for details).');
 end
 
-if mod(length(varargin),2) ~= 0,
+if mod(length(varargin),2) ~= 0
   error('Incorrect number of parameters (type ''help <a href="matlab:help ConsolidateIntervals">ConsolidateIntervals</a>'' for details).');
 end
 
 % Parse options
-for i = 1:2:length(varargin),
-	if ~ischar(varargin{i}),
+for i = 1:2:length(varargin)
+	if ~ischar(varargin{i})
 		error(['Parameter ' num2str(i+firstIndex) ' is not a property (type ''help <a href="matlab:help ConsolidateIntervals">ConsolidateIntervals</a>'' for details).']);
 	end
-	switch(lower(varargin{i})),
-		case 'strict',
+	switch(lower(varargin{i}))
+		case 'strict'
 			strict = lower(varargin{i+1});
-			if ~isastring(strict,'on','off'),
+			if ~isastring(strict,'on','off')
 				error('Incorrect value for property ''strict'' (type ''help <a href="matlab:help ConsolidateIntervals">ConsolidateIntervals</a>'' for details).');
 			end
-		case 'epsilon',
+		case 'epsilon'
 			epsilon = varargin{i+1};
-			if ~isdscalar(epsilon,'>=0'),
+			if ~isdscalar(epsilon,'>=0')
 				error('Incorrect value for property ''epsilon'' (type ''help <a href="matlab:help ConsolidateIntervals">ConsolidateIntervals</a>'' for details).');
 			end
-		otherwise,
+        otherwise
 			error(['Unknown property ''' num2str(varargin{i}) ''' (type ''help <a href="matlab:help ConsolidateIntervals">ConsolidateIntervals</a>'' for details).']);
 	end
+end
+
+if isempty(intervals)
+    consolidated = intervals;
+    target = intervals;
+    return
 end
 
 original = intervals;
 
 % Mark already consolidated intervals to avoid retesting them
-done = logical(zeros(size(intervals(:,1))));
+done = false(size(intervals,1));
 
-if strcmp(strict,'on'),
-	for i = 1:size(intervals,1),
+if strcmp(strict,'on')
+	for i = 1:size(intervals,1)
 		if done(i), continue; end
 		% Lower (L) and upper (U) interval bounds
 		L = intervals(:,1);
@@ -89,7 +95,7 @@ if strcmp(strict,'on'),
 		% (their upper bound is greater than l, and their lower bound is lower than u)
 		intersect = (U > l & L < u);
 		% 2) they contain I
-		if u == l,
+		if u == l
  			% Special case: I is a singleton
  			intersect = intersect | (L < l & U > u);
 		else
@@ -103,8 +109,8 @@ if strcmp(strict,'on'),
 		done(intersect) = 1;
 	end
 else
-	% (same as above, but replacing e.g. < with <=)
-	for i = 1:size(intervals,1),
+	% same as above, but replacing e.g. < with <=
+	for i = 1:size(intervals,1)
 		if done(i), continue; end
 		% Lower (L) and upper (U) interval bounds
 		L = intervals(:,1);
@@ -128,11 +134,11 @@ end
 
 % Assign each consolidated interval an ID (in ascending order)
 transitions = [1;find(diff(intervals(:,1))~=0)+1;length(intervals(:,1))];
-for i = 1:length(transitions)-1,
+for i = 1:length(transitions)-1
 	target(transitions(i):transitions(i+1)) = repmat(i,transitions(i+1)-transitions(i)+1,1);
 end
 
-%  Reorder consolidated interval IDs
+% Reorder consolidated interval IDs
 target(order) = target;
 target = target';
 
