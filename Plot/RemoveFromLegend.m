@@ -25,7 +25,9 @@ end
 
 % set property of graphic objects
 for hand = h(:).'
-    hand.Annotation.LegendInformation.IconDisplayStyle = 'off';
+    if ~isa(hand,'matlab.graphics.GraphicsPlaceholder')
+        hand.Annotation.LegendInformation.IconDisplayStyle = 'off';
+    end
 end
 
 % get parent figure
