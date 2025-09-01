@@ -74,7 +74,8 @@
 		{"name":"angles", "kind":"required", "type":"numeric"},
 		{"name":"nBins", "kind":"namevalue", "type":"numeric"},
 		{"name":"smooth", "kind":"namevalue", "type":"numeric"},
-		{"name":"groups", "kind":"namevalue", "type":"numeric"}
+		{"name":"groups", "kind":"namevalue", "type":"numeric"},
+        {"name":"normalize", "kind":"namevalue", "type":"string"}
 	]
 },
 

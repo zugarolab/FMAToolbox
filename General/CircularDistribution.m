@@ -137,4 +137,3 @@ for i = 1 : nGroups
 	x = find(counts==max(counts));x = x(1);
 	stats.mode(i) = bin_centers(x);
 end
-
