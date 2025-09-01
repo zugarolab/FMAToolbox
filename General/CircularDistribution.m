@@ -1,12 +1,12 @@
-function [dist,binned,stats] = CircularDistribution(angles,varargin)
+function [dist,bin_centers,stats] = CircularDistribution(angles,varargin)
 
 %CircularDistribution - Compute circular distribution and statistics.
 %
 %  USAGE
 %
-%    [dist,binned,stats] = CircularDistribution(angles,<options>)
+%    [dist,bin_centers,stats] = CircularDistribution(angles,<options>)
 %
-%    angles         angles in radians
+%    angles         angles in radians, which will be shifted in [0,2π) 
 %    <options>      optional list of property-value pairs (see table below)
 %
 %    =========================================================================
@@ -22,7 +22,7 @@ function [dist,binned,stats] = CircularDistribution(angles,varargin)
 %  OUTPUT
 %
 %    dist           circular distribution (one column per group)
-%    binned         centers of the angular bins
+%    bin_centers    centers of the angular bins
 %    stats.m        mean angle (one per group)
 %    stats.mode     distribution mode (one per group)
 %    stats.r        mean resultant length (one per group)
@@ -103,6 +103,9 @@ for i = 1:2:length(varargin)
       error(['Unknown property ''' num2str(varargin{i}) ''' (type ''help <a href="matlab:help CircularDistribution">CircularDistribution</a>'' for details).']);
   end
 end
+
+% Remap angles in [0,2π)
+angles = mod(angles,2*pi);
 
 % Angle bins
 bin_edges = linspace(0,2*pi,nBins+1).';
