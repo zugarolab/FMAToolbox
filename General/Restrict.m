@@ -92,13 +92,13 @@ end
 
 if isempty(intervals)
     samples = []; originalIndex = []; intervalID = [];
-    verbose && fprintf(1,'Restriction over empty intervals.');
+    verbose && fprintf(1,'Restriction over empty intervals.\n');
     return
 end
 
 if isempty(samples)
     samples = []; originalIndex = []; intervalID = [];
-    verbose && fprintf('No samples to restrict.');
+    verbose && fprintf(1,'No samples to restrict.\n');
     return
 end
 
