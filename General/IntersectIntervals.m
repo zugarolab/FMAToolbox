@@ -47,6 +47,7 @@ end
 % exclude intervals with any NaNs, transpose and flatten to use discretize
 a = a(~any(isnan(a),2),:);
 a = a.'; a = a(:);
+a_orig = a;
 b = b(~any(isnan(b),2),:);
 b = b.'; b = b(:);
 
@@ -97,7 +98,7 @@ intersection(new_odd_ind) = a(odd_ind);
 intersection = [intersection(1:2:end),intersection(2:2:end)];
 
 if nargout > 1
-    Ia = ceil(discretize(intersection(:,1),a)/2);
+    Ia = ceil(discretize(intersection(:,1),a_orig)/2);
 end
 if nargout > 2
     Ib = ceil(new_ind(1:2:end)/2);
