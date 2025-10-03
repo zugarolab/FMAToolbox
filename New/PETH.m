@@ -136,12 +136,12 @@ for i = 1:2:length(varargin)
     end
 end
 
-if size(samples,2)==2 % if the provided data is a signal rather than events
+if size(samples,2) == 2 % if the provided data is a signal rather than events
     t = linspace(duration(:,1),duration(2),nBins);
     mat_t = bsxfun(@plus,events,t);
     dt = diff(samples(:,1));
     samples(dt>median(dt)*2,2) = nan;       % To take care of gaps in the signal : interpolate values in the gaps to nans
-    if strcmp(mode, 'l')
+    if strcmp(mode,'l')
         mat = interp1(samples(:,1),samples(:,2),mat_t);
         m = Smooth(nanmean(mat),smooth);
     else % circular data
@@ -152,44 +152,39 @@ if size(samples,2)==2 % if the provided data is a signal rather than events
         m = atan2(smoothed(:,1),smoothed(:,2));
     end
     if strcmpi(show,'on'), plot(t', m, pictureoptions{:}); end
-    if nargout>0, varargout{1} = mat; varargout{2} = t; varargout{3} = m; end
-    return
-else % the samples are a point process
+else
+    % samples are a point process
     [sync, j] = Sync(samples, events, 'durations', duration);
-    if nargout>0
-        s = Bin(sync(:,1),duration,nBins);
+    if nargout > 0
         mat = zeros(size(events,1),nBins);
         if isempty(sync)
             t = linspace(duration(1),duration(2),nBins);
             m = zeros(1,nBins);
         else
-            mat(:) = Accumulate(sub2ind(size(mat),j,s),1,numel(mat));
+            s = discretize(sync(:,1),linspace(duration(1),duration(2),nBins+1)); % nBins+1 chosen to match previous behavior of Bins  
+            mat(:) = accumarray(sub2ind(size(mat),j,s),1,[numel(mat),1]);
             t = linspace(duration(1),duration(2),nBins);
         end
-        varargout{1} = mat;
-        varargout{2} = t;
     end
-    if strcmpi(show,'on') % compute 'm' that we will plot
+    if strcmpi(show,'on') || nargout > 2
+        % compute 'm'
         [m, ~, t] = SyncHist(sync, j, 'nBins', nBins, 'smooth', smooth, 'mode', 'mean', 'durations', duration);
+        if strcmpi(show,'on')
+            % plot
+            if isempty(pictureoptions)
+                if exist('linetype','var'), PlotXY(t', m, linetype); else, PlotXY(t', m); end
+            else
+                PlotXY(t', m, pictureoptions{:});
+            end
+            title([namestring ', ' num2str(numel(j)) ' x ' num2str(numel(unique(j))) ' instances']);
+        end
     end
 end
 
-if strcmpi(show,'on')
-    if isempty(pictureoptions)
-        if exist('linetype','var'), PlotXY(t', m, linetype); else, PlotXY(t', m); end
-        title([namestring ', ' num2str(numel(j)) ' x ' num2str(numel(unique(j))) ' instances']);
-    else
-        PlotXY(t', m, pictureoptions{:}); title([namestring ', ' num2str(numel(j)) ' x ' num2str(numel(unique(j))) ' instances']);
-    end
-end
-
-if nargout>0
+if nargout > 0
     varargout{1} = mat;
     varargout{2} = t;
-    if nargout>2
-        if ~exist('m','var')
-            [m, ~, ~] = SyncHist(sync, j, 'nBins', nBins, 'smooth', smooth, 'mode', 'mean', 'durations', duration);
-        end
-        varargout{3} = m;
-    end
+end
+if nargout > 2
+    varargout{3} = m;
 end
