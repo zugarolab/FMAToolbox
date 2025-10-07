@@ -1,4 +1,4 @@
-function intersection = IntersectIntervals(a,b)
+function [intersection,Ia,Ib] = IntersectIntervals(a,b)
 
 %IntersectIntervals - Find intersection of two sets of sorted intervals.
 %
@@ -9,13 +9,19 @@ function intersection = IntersectIntervals(a,b)
 %
 %  USAGE
 %
-%    intersection = IntersectIntervals(a,b)
+%    [intersection,Ia,Ib] = IntersectIntervals(a,b)
 %
 %    a, b           lists of sorted non-overlapping (start,stop) pairs, i.e., 
 %                   first column is in ascending order and intervals of the
 %                   list are not overlapping (see ConsolidateIntervals to make
 %                   an interval list non overlapping); intervals containing
 %                   NaNs are ignored
+%
+%  OUTPUT
+%
+%    intersection   intersection intervals
+%    Ia (Ib)        for each intersection interval, the index of the original
+%                   interval in a (b) which contains it
 %
 %  SEE
 %
@@ -41,6 +47,7 @@ end
 % exclude intervals with any NaNs, transpose and flatten to use discretize
 a = a(~any(isnan(a),2),:);
 a = a.'; a = a(:);
+a_orig = a;
 b = b(~any(isnan(b),2),:);
 b = b.'; b = b(:);
 
@@ -67,7 +74,7 @@ keep_ind = repelem(keep_ind,2);
 ind = ind(keep_ind);
 a = a(keep_ind);
 if isempty(ind)
-    intersection = [];
+    [intersection,Ia,Ib] = deal([]);
     return
 end
 
@@ -89,3 +96,10 @@ intersection = b(new_ind);
 intersection(new_odd_ind) = a(odd_ind);
 % return as interval list
 intersection = [intersection(1:2:end),intersection(2:2:end)];
+
+if nargout > 1
+    Ia = ceil(discretize(intersection(:,1),a_orig)/2);
+end
+if nargout > 2
+    Ib = ceil(new_ind(1:2:end)/2);
+end

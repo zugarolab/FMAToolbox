@@ -23,6 +23,8 @@ function [samples, originalIndex, intervalID] = Restrict(samples,intervals,varar
 %     Properties    Values
 %    -------------------------------------------------------------------------
 %     'shift'       shift remaining epochs together in time (default = 'off')
+%     'matrix'      if 'off' (default), when samples is a row vector it is treated
+%                   as a column
 %     'verbose'     if 'on' (default), display warning for empty inputs
 %    =========================================================================
 %
@@ -44,25 +46,21 @@ function [samples, originalIndex, intervalID] = Restrict(samples,intervals,varar
 
 % Default values
 shift = 'off';
+matrix = false;
 verbose = true;
 transpose = false;
 try samples(isnan(samples(:,1)),:) = []; end
 
 % Check number of parameters
 if nargin < 2 || mod(length(varargin),2) ~= 0
-  error('Incorrect number of parameters (type ''help <a href="matlab:help Restrict">Restrict</a>'' for details).');
+    error('Incorrect number of parameters (type ''help <a href="matlab:help Restrict">Restrict</a>'' for details).');
 end
 
 % Check parameters
 intervals = double(intervals);
 samples = double(samples);
 if ~isdmatrix(intervals) || size(intervals,2) ~= 2
-  error('Incorrect intervals (type ''help <a href="matlab:help Restrict">Restrict</a>'' for details).');
-end
-
-if size(samples,1) == 1
-	samples = samples(:);
-    transpose = true;
+    error('Incorrect intervals (type ''help <a href="matlab:help Restrict">Restrict</a>'' for details).');
 end
 
 % Parse parameter list
@@ -75,6 +73,15 @@ for i = 1:2:length(varargin)
 			shift = varargin{i+1};
             if ~isastring(shift,'on','off')
                 error('Incorrect value for property ''shift'' (type ''help <a href="matlab:help Restrict">Restrict</a>'' for details).');
+            end
+        case 'matrix'
+            matrix = varargin{i+1};
+            if isastring(matrix,'on','off')
+                matrix = strcmp(matrix,'on');
+            else
+                if ~isscalar(matrix) || ~(isnumeric(matrix) || islogical(matrix)) || ~ismember(matrix,[1,0])
+                    error('Incorrect value for property ''matrix'' (type ''help <a href="matlab:help Restrict">Restrict</a>'' for details).');
+                end
             end
         case 'verbose'
             verbose = varargin{i+1};
@@ -90,15 +97,20 @@ for i = 1:2:length(varargin)
 	end
 end
 
+if ~matrix && size(samples,1) == 1
+    samples = samples(:);
+    transpose = true;
+end
+
 if isempty(intervals)
     samples = []; originalIndex = []; intervalID = [];
-    verbose && fprintf(1,'Restriction over empty intervals.');
+    verbose && fprintf(1,'Restriction over empty intervals.\n');
     return
 end
 
 if isempty(samples)
     samples = []; originalIndex = []; intervalID = [];
-    verbose && fprintf('No samples to restrict.');
+    verbose && fprintf(1,'No samples to restrict.\n');
     return
 end
 
