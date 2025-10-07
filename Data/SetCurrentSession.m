@@ -162,9 +162,9 @@ if isfile(session_file)
     try DATA.rates.lfp = session.extracellular.srLfp; end
     try DATA.rates.wideband = session.extracellular.sr; end
     % video information is missing in CellExplorer session.mat file
-    DATA.rates.video = 0;
-	DATA.maxX = 0;
-	DATA.maxY = 0;
+    DATA.rates.video = 39.0625;
+	DATA.maxX = NaN;
+	DATA.maxY = NaN;
 	disp('... warning: missing video parameters (set to zero)');
 else
     DATA = LoadParameters([basepath separator basename '.xml']);
