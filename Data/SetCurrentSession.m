@@ -181,7 +181,7 @@ if isfile(behavior_file)
         load(behavior_file,'behavior')
         event_times = cellfun(@(x) [x.startTime;x.stopTime],behavior.epochs.sessions,UniformOutput=false); % CONFLICT: SOMETIMES struct
         DATA.events.time = vertcat(event_times{:}); % CHECK IF IT SHOULD BE cell
-        event_descriptions = cellfun(@(x) {['beginning of ',x.name];['end of ',x.name]},behavior.epochs.sessions,UniformOutput=false).';
+        event_descriptions = cellfun(@(x) {['beginning of ',char(x.name)];['end of ',char(x.name)]},behavior.epochs.sessions,UniformOutput=false).';
         event_descriptions = [event_descriptions{:}];
         DATA.events.description = event_descriptions(:);
         error_flag = false;
