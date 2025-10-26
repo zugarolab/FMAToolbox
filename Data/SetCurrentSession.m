@@ -196,7 +196,12 @@ else
 end
 if ~isempty(eventFiles)
 	for i = 1 : length(eventFiles)
+        try
 		events = LoadEvents([basepath separator eventFiles(i).name]);
+        catch ME
+              eventFiles = dir([basepath separator basename '.*.evt']); % look for standard FMAT event files
+              events = LoadEvents([basepath separator eventFiles(i).name]);
+        end
         if ~isempty(events.time)
 	        DATA.events.time = [DATA.events.time;events.time];
 		    DATA.events.description = [DATA.events.description;events.description];
