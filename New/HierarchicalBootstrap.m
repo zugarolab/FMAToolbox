@@ -105,7 +105,7 @@ for i = 1:2:length(varargin)
             end
         case {'ncolumns'}
             nColumns = varargin{i+1};
-            if ~(isscalar(nColumns) && (nColumns>0) && nColumns<size(data,2)-1)
+            if ~(isscalar(nColumns) && (nColumns>0) && nColumns<size(data,2))
                 builtin('error',['Incorrect value for property ''' varargin{i} ''' (type ''help <a href="matlab:help HierarchicalBootstrap">HierarchicalBootstrap</a>'' for details).']);
             end
         case {'output','outputs'}
