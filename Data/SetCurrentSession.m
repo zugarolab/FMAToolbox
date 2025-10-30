@@ -190,7 +190,7 @@ if isfile(behavior_file)
         error_flag = true;
     end
     eventFiles = dir([basepath separator basename '.*.events.mat']); % look for CellExplorer event files
-    if error_flag, eventFiles = [eventFiles; dir([basepath separator basename '.cat.evt'])]; end % add FMAT .cat.evt file
+    if error_flag || isempty(eventFiles), eventFiles = [eventFiles; dir([basepath separator basename '.cat.evt'])]; end % add FMAT .cat.evt file
 else
     eventFiles = dir([basepath separator basename '.*.evt']); % look for standard FMAT event files
 end
@@ -198,7 +198,7 @@ if ~isempty(eventFiles)
 	for i = 1 : length(eventFiles)
         try
 		events = LoadEvents([basepath separator eventFiles(i).name]);
-        catch ME
+        catch 
               eventFiles = dir([basepath separator basename '.*.evt']); % look for standard FMAT event files
               events = LoadEvents([basepath separator eventFiles(i).name]);
         end
