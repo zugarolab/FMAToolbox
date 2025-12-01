@@ -157,18 +157,17 @@ else
     [sync, j] = Sync(samples, events, 'durations', duration);
     if nargout > 0
         mat = zeros(size(events,1),nBins);
-        if isempty(sync)
-            t = linspace(duration(1),duration(2),nBins);
-            m = zeros(1,nBins);
-        else
-            s = discretize(sync(:,1),linspace(duration(1),duration(2),nBins+1)); % nBins+1 chosen to match previous behavior of Bins  
+        t = linspace(duration(1),duration(2),nBins+1); % nBins+1 chosen to match previous behavior of Bins
+        time_bin = t(2) - t(1);
+        t = (t(1:end-1) + t(2:end)) / 2;
+        if ~isempty(sync)
+            s = discretize(sync,linspace(duration(1),duration(2),nBins+1));
             mat(:) = accumarray(sub2ind(size(mat),j,s),1,[numel(mat),1]);
-            t = linspace(duration(1),duration(2),nBins);
         end
     end
     if strcmpi(show,'on') || nargout > 2
         % compute 'm'
-        [m, ~, t] = SyncHist(sync, j, 'nBins', nBins, 'smooth', smooth, 'mode', 'mean', 'durations', duration);
+        m = smoothdata(mean(mat),'gaussian',5*smooth) / time_bin; % factor 5 chosen to match previous behavior of Smooth
         if strcmpi(show,'on')
             % plot
             if isempty(pictureoptions)
@@ -176,7 +175,7 @@ else
             else
                 PlotXY(t', m, pictureoptions{:});
             end
-            title([namestring ', ' num2str(numel(j)) ' x ' num2str(numel(unique(j))) ' instances']);
+            title([replace(namestring,'_','\_') ', ' num2str(numel(j)) ' x ' num2str(numel(unique(j))) ' instances']);
         end
     end
 end
