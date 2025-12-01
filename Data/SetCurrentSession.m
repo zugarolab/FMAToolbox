@@ -162,9 +162,9 @@ if isfile(session_file)
     try DATA.rates.lfp = session.extracellular.srLfp; end
     try DATA.rates.wideband = session.extracellular.sr; end
     % video information is missing in CellExplorer session.mat file
-    DATA.rates.video = 0;
-	DATA.maxX = 0;
-	DATA.maxY = 0;
+    DATA.rates.video = 39.0625;
+	DATA.maxX = NaN;
+	DATA.maxY = NaN;
 	disp('... warning: missing video parameters (set to zero)');
 else
     DATA = LoadParameters([basepath separator basename '.xml']);
@@ -181,7 +181,7 @@ if isfile(behavior_file)
         load(behavior_file,'behavior')
         event_times = cellfun(@(x) [x.startTime;x.stopTime],behavior.epochs.sessions,UniformOutput=false); % CONFLICT: SOMETIMES struct
         DATA.events.time = vertcat(event_times{:}); % CHECK IF IT SHOULD BE cell
-        event_descriptions = cellfun(@(x) {['beginning of ',x.name];['end of ',x.name]},behavior.epochs.sessions,UniformOutput=false).';
+        event_descriptions = cellfun(@(x) {['beginning of ',char(x.name)];['end of ',char(x.name)]},behavior.epochs.sessions,UniformOutput=false).';
         event_descriptions = [event_descriptions{:}];
         DATA.events.description = event_descriptions(:);
         error_flag = false;
@@ -190,13 +190,18 @@ if isfile(behavior_file)
         error_flag = true;
     end
     eventFiles = dir([basepath separator basename '.*.events.mat']); % look for CellExplorer event files
-    if error_flag, eventFiles = [eventFiles; dir([basepath separator basename '.cat.evt'])]; end % add FMAT .cat.evt file
+    if error_flag || isempty(eventFiles), eventFiles = [eventFiles; dir([basepath separator basename '.cat.evt'])]; end % add FMAT .cat.evt file
 else
     eventFiles = dir([basepath separator basename '.*.evt']); % look for standard FMAT event files
 end
 if ~isempty(eventFiles)
 	for i = 1 : length(eventFiles)
+        try
 		events = LoadEvents([basepath separator eventFiles(i).name]);
+        catch 
+              eventFiles = dir([basepath separator basename '.*.evt']); % look for standard FMAT event files
+              events = LoadEvents([basepath separator eventFiles(i).name]);
+        end
         if ~isempty(events.time)
 	        DATA.events.time = [DATA.events.time;events.time];
 		    DATA.events.description = [DATA.events.description;events.description];

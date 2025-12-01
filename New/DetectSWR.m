@@ -280,7 +280,7 @@ else
 end
 
 % 2) Channels
-if ~all(Channels > 0 & Channels <= nChan) % corrected by AFR
+if ~all(Channels+1 > 0 & Channels+1 <= nChan) % corrected by AFR
     error(['%s: incompatible input for 2nd argument (Channels)\n', ...
         '\tAccording to the .xml file, the user did not supply\n', ...
         '\ta valid list of channels.\n'], mfname);
