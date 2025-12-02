@@ -155,15 +155,13 @@ if size(samples,2) == 2 % if the provided data is a signal rather than events
 else
     % samples are a point process
     [sync, j] = Sync(samples, events, 'durations', duration);
-    if nargout > 0
-        mat = zeros(size(events,1),nBins);
-        t = linspace(duration(1),duration(2),nBins+1); % nBins+1 chosen to match previous behavior of Bins
-        time_bin = t(2) - t(1);
-        t = (t(1:end-1) + t(2:end)) / 2;
-        if ~isempty(sync)
-            s = discretize(sync,linspace(duration(1),duration(2),nBins+1));
-            mat(:) = accumarray(sub2ind(size(mat),j,s),1,[numel(mat),1]);
-        end
+    mat = zeros(size(events,1),nBins);
+    t = linspace(duration(1),duration(2),nBins+1); % nBins+1 chosen to match previous behavior of Bins
+    time_bin = t(2) - t(1);
+    t = (t(1:end-1) + t(2:end)) / 2;
+    if ~isempty(sync)
+        s = discretize(sync,linspace(duration(1),duration(2),nBins+1));
+        mat(:) = accumarray(sub2ind(size(mat),j,s),1,[numel(mat),1]);
     end
     if strcmpi(show,'on') || nargout > 2
         % compute 'm'
