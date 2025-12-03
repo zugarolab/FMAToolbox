@@ -19,6 +19,7 @@ function [synchronized,indices] = Sync(samples,sync,varargin)
 %    -------------------------------------------------------------------------
 %     'durations'   durations before and after synchronizing events for each
 %                   trial (in s) (default = [-0.5 0.5])
+%     'fast'        if 'off' (default), sort 'samples' and 'sync' before operating
 %     'verbose'     display information about ongoing processing
 %                   (default = 'off')
 %    =========================================================================
@@ -37,7 +38,7 @@ function [synchronized,indices] = Sync(samples,sync,varargin)
 %
 %    See also SyncHist, SyncMap, PlotSync, PETHTransition.
 
-% Copyright (C) 2004-2014 by Michaël Zugaro
+% Copyright (C) 2004-2014 by Michaël Zugaro, 2025 by Pietro Bozzo
 %
 % This program is free software; you can redistribute it and/or modify
 % it under the terms of the GNU General Public License as published by
@@ -46,52 +47,55 @@ function [synchronized,indices] = Sync(samples,sync,varargin)
 
 % Default values
 durations = [-0.5 0.5];
+fast = false;
 verbose = false;
 
 % Check number of parameters
-if nargin < 2 | mod(length(varargin),2) ~= 0,
+if nargin < 2 || mod(length(varargin),2) ~= 0
   error('Incorrect number of parameters (type ''help <a href="matlab:help Sync">Sync</a>'' for details).');
 end
 
 % Check parameter sizes
-if ~isdvector(sync),
+if ~isdvector(sync)
 	error('Parameter ''sync'' is not a vector (type ''help <a href="matlab:help Sync">Sync</a>'' for details).');
-end
-if isempty(sync) || isempty(samples),
-	synchronized = [];
-	indices = [];
 end
 
 % Parse parameter list
-for i = 1:2:length(varargin),
-	if ~ischar(varargin{i}),
+for i = 1:2:length(varargin)
+	if ~ischar(varargin{i})
 		error(['Parameter ' num2str(i+2) ' is not a property (type ''help <a href="matlab:help Sync">Sync</a>'' for details).']);
 	end
-	switch(lower(varargin{i})),
-		case 'durations',
+	switch lower(varargin{i})
+		case 'durations'
 			durations = varargin{i+1};
-			if ~isdvector(durations,'#2','<='),
+			if ~isdvector(durations,'#2','<=')
 				error('Incorrect value for property ''durations'' (type ''help <a href="matlab:help Sync">Sync</a>'' for details).');
+      end
+    case 'fast'
+      fast = varargin{i+1};
+      if ~isastring(fast,'on','off')
+				error('Incorrect value for property ''fast'' (type ''help <a href="matlab:help Sync">Sync</a>'' for details).');
 			end
-		case 'verbose',
+			fast = strcmp(fast,'on');
+		case 'verbose'
 			verbose = varargin{i+1};
-			if ~isastring(verbose,'on','off'),
+			if ~isastring(verbose,'on','off')
 				error('Incorrect value for property ''verbose'' (type ''help <a href="matlab:help Sync">Sync</a>'' for details).');
 			end
 			verbose = strcmp(verbose,'on');
-		otherwise,
+    otherwise
 			error(['Unknown property ''' num2str(varargin{i}) ''' (type ''help <a href="matlab:help Sync">Sync</a>'' for details).']);
 	end
 end
 
 % Make sure samples and sync events are sorted in time
-samples = sortrows(samples,1);
-sync = sortrows(sync,1);
-nSync = length(sync);
-
-if verbose,
-	disp([num2str(nSync) ' synchronizing events to process...']) ;
+if ~fast
+    samples = sortrows(samples);
+    sync = sortrows(sync);
 end
+
+nSync = length(sync);
+verbose && fprintf(1,[num2str(nSync) ' synchronizing events to process...\n']);
 
 % Output matrices will be allocated in arbitrarily large blocks (and will be trimmed down later)
 % This will be much faster than increasing matrix size by the exact appropriate amount for each synchronizing event
@@ -104,27 +108,28 @@ indices = nan(blockLength,1);
 previous = 1;
 
 k = 1;
-for i = 1:nSync,
+for i = 1 : nSync
+
 	% Find samples within time window around this synchronizing event
 	j = FindInInterval(samples,[sync(i)+durations(1) sync(i)+durations(2)],previous);
-	if ~isempty(j),
+	if ~isempty(j)
+
 		previous = j(1);
 		j = (j(1):j(2))';
 		nj = length(j);
-		if verbose, disp([' sync ' int2str(i) ' (t=' num2str(sync(i)) '): ' int2str(length(j)) ' samples']); end
+    verbose && fprintf(1,[' sync ' int2str(i) ' (t=' num2str(sync(i)) '): ' int2str(nj) ' samples\n']);
+
 		% Synchronize samples
-		if ~isempty(j),
-			if length(indices) < k + nj,
-				% Enlarge matrices if necessary
-				synchronized = [synchronized;nan(blockLength,size(samples,2))];
-				indices = [indices;nan(blockLength,1)];
-			end
-			synchronized(k:k+nj-1,:) = [samples(j,1)-sync(i) samples(j,2:end)];
-			indices(k:k+nj-1,1) = i*ones(size(j));
+    if length(indices) < k + nj
+			% Enlarge matrices if necessary
+			synchronized = [synchronized;nan(blockLength,size(samples,2))];
+			indices = [indices;nan(blockLength,1)];
 		end
+		synchronized(k:k+nj-1,:) = [samples(j,1)-sync(i) samples(j,2:end)];
+		indices(k:k+nj-1,1) = i*ones(size(j));
+
 		k = k + nj;
 	end
 end
 indices(k:end) = [];
 synchronized(k:end,:) = [];
-
