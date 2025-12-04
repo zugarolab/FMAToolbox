@@ -15,10 +15,10 @@ function varargout = PETH(samples, events, varargin)
 %
 %  INPUT
 %
-%    samples         either a list of timestamps (e.g. a spike train) or, in
-%                    the case of a continuous signal (e.g. reactivation strength,
-%                    local field potential, etc), a matrix of [timestamps
-%                    values]
+%    samples         either a list of timestamps (e.g. a spike train) or a
+%                    (n,2) matrix of [timestamps values], in case of a continuous
+%                    signal (e.g. reactivation strength, local field potential)
+%                    
 %    events          timestamps to synchronize on (e.g., brain
 %                    stimulations)
 %    <options>       optional list of property-value pairs (see table below)
@@ -31,10 +31,13 @@ function varargout = PETH(samples, events, varargin)
 %     'nBins'        number of time bins around the events (default = 101)
 %     'fast'         if 'off' (default), sort 'samples' and 'events' before
 %                    operating, otherwise they are expected to be sorted
-%                    (has no effect if samples isn't a column vector)
+%                    (only for timestamps input)
+%     'group'        indeces to group samples, a separate output will be computed
+%                    per group (much faster than calling PETH once per group;
+%                    only for timestamps input)
 %     'mode'         whether the sample data is linear ('l') or circular ('c')
 %                    (for example, in the case 'samples' is the phase of an
-%                    oscillation)
+%                    oscillation; only for matrix input)
 %     'show'         display the mean PETH (default = 'on' when no outputs are
 %                    requested and 'off' otherwise)
 %     'smooth'       standard deviation for Gaussian kernel (default = 1 bin)
@@ -43,9 +46,9 @@ function varargout = PETH(samples, events, varargin)
 %     'title'        if the results are displayed ('show' = 'on'), specify a
 %                    desired title (default is deduced by variable names)
 %     <plot options> any other property (and all the properties that follow)
-%                    will be passed down to "plot" (e.g. 'r', 'linewidth', etc)
-%                    Because all the following inputs are passed down to "plot",
-%                    make sure you put these properties last.
+%                    will be passed down to "plot" (e.g. 'r', 'linewidth', etc);
+%                    because all the following inputs are passed down to "plot",
+%                    make sure you put these properties last
 %    =========================================================================
 %
 %  OUTPUT
@@ -86,19 +89,20 @@ function varargout = PETH(samples, events, varargin)
 
 % default values
 duration = [-1 1];
+nBins = 101;
 fast = 'off';
+group = [];
+mode = 'l';
+smooth = 1;
 namestring = [inputname(1) ', synchronised to ' inputname(2)];
 pictureoptions = {};
-smooth = 1;
-nBins = 101;
 if nargout < 1
     show = 'on';
 else
     show = 'off';
 end
-mode = 'l';
 
-for i = 1:2:length(varargin)
+for i = 1 : 2 : length(varargin)
     switch lower(varargin{i})
         case 'durations'
             duration = varargin{i+1};
@@ -117,9 +121,14 @@ for i = 1:2:length(varargin)
             end
         case 'fast'
             fast = varargin{i+1};
-      if ~isastring(fast,'on','off')
-				error('Incorrect value for property ''fast'' (type ''help <a href="matlab:help Sync">Sync</a>'' for details).');
-      end
+            if ~isastring(fast,'on','off')
+                error('Incorrect value for property ''fast'' (type ''help <a href="matlab:help PETH">PETH</a>'' for details).');
+            end
+        case 'group'
+            group = varargin{i+1};
+            if ~isdvector(group)
+                error('Incorrect value for property ''group'' (type ''help <a href="matlab:help PETH">PETH</a>'' for details).');
+            end
         case 'show'
             show = varargin{i+1};
             if ~isastring(show,'on','off')
@@ -152,39 +161,35 @@ if size(samples,2) == 2 % if the provided data is a signal rather than events
     samples(dt>median(dt)*2,2) = nan;       % To take care of gaps in the signal : interpolate values in the gaps to nans
     if strcmp(mode,'l')
         mat = interp1(samples(:,1),samples(:,2),mat_t);
-        m = Smooth(nanmean(mat),smooth);
+        m = Smooth(mean(mat,'omitnan'),smooth);
     else % circular data
         unwrapped = unwrap(samples(:,2));
         mat = wrap(interp1(samples(:,1),unwrapped,mat_t));
-        angles = nanmean(exp(1i*mat));
+        angles = mean(exp(1i*mat),'omitnan');
         smoothed = [Smooth(imag(angles(:)),smooth) Smooth(real(angles(:)),smooth)];
         m = atan2(smoothed(:,1),smoothed(:,2));
     end
-    if strcmpi(show,'on'), plot(t', m, pictureoptions{:}); end
 else
     % samples are a point process
-    [sync, j] = Sync(samples,events,'durations',duration,'fast',fast);
-    mat = zeros(size(events,1),nBins);
+    [sync,j] = Sync(samples,events,'durations',duration,'fast',fast);
     t = linspace(duration(1),duration(2),nBins+1); % nBins+1 chosen to match previous behavior of Bins
     time_bin = t(2) - t(1);
-    t = (t(1:end-1) + t(2:end)) / 2;
+    mat = zeros(size(events,1),nBins);
     if ~isempty(sync)
-        s = discretize(sync,linspace(duration(1),duration(2),nBins+1));
+        s = discretize(sync,t);
         mat(:) = accumarray(sub2ind(size(mat),j,s),1,[numel(mat),1]);
     end
+    t = (t(1:end-1) + t(2:end)) / 2;
     if strcmpi(show,'on') || nargout > 2
-        % compute 'm'
+        % compute m
         m = smoothdata(mean(mat),'gaussian',5*smooth) / time_bin; % factor 5 chosen to match previous behavior of Smooth
-        if strcmpi(show,'on')
-            % plot
-            if isempty(pictureoptions)
-                if exist('linetype','var'), PlotXY(t', m, linetype); else, PlotXY(t', m); end
-            else
-                PlotXY(t', m, pictureoptions{:});
-            end
-            title([replace(namestring,'_','\_') ', ' num2str(numel(j)) ' x ' num2str(numel(unique(j))) ' instances']);
-        end
     end
+end
+
+% plot
+if strcmpi(show,'on')
+    plot(t,m,pictureoptions{:});
+    title([replace(namestring,'_','\_') ', ' num2str(numel(j)) ' x ' num2str(numel(unique(j))) ' instances']);
 end
 
 if nargout > 0
@@ -193,4 +198,19 @@ if nargout > 0
 end
 if nargout > 2
     varargout{3} = m;
+end
+
+end
+
+% --- helper functions ---
+
+%mat = sync2mat(sync,j,t,size(events,1),nBins);
+function mat = sync2mat(sync,j,t,nEvents,nBins)
+
+    mat = zeros(nEvents,nBins);
+    if ~isempty(sync)
+        s = discretize(sync,t);
+        mat(:) = accumarray(sub2ind(size(mat),j,s),1,[numel(mat),1]); % Can maybe change with size(mat) !!
+    end
+
 end
