@@ -19,7 +19,8 @@ function [synchronized,indices] = Sync(samples,sync,varargin)
 %    -------------------------------------------------------------------------
 %     'durations'   durations before and after synchronizing events for each
 %                   trial (in s) (default = [-0.5 0.5])
-%     'fast'        if 'off' (default), sort 'samples' and 'sync' before operating
+%     'fast'        if 'off' (default), sort 'samples' and 'sync' before
+%                   operating, otherwise they are expected to be sorted
 %     'verbose'     display information about ongoing processing
 %                   (default = 'off')
 %    =========================================================================

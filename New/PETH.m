@@ -15,49 +15,53 @@ function varargout = PETH(samples, events, varargin)
 %
 %  INPUT
 %
-%    samples        either a list of timestamps (e.g. a spike train) or, in
-%                   the case of a continuous signal (e.g. reactivation strength,
-%                   local field potential, etc), a matrix of [timestamps
-%                   values]
-%    events         timestamps to synchronize on (e.g., brain
-%                   stimulations)
-%    <options>      optional list of property-value pairs (see table below)
+%    samples         either a list of timestamps (e.g. a spike train) or, in
+%                    the case of a continuous signal (e.g. reactivation strength,
+%                    local field potential, etc), a matrix of [timestamps
+%                    values]
+%    events          timestamps to synchronize on (e.g., brain
+%                    stimulations)
+%    <options>       optional list of property-value pairs (see table below)
 %
 %    =========================================================================
-%     Properties    Values
+%     Properties     Values
 %    -------------------------------------------------------------------------
-%     'durations'   durations before and after synchronizing events for each
-%                   trial (in s) (default = [-1 1])
-%     'nBins'       number of time bins around the events (default = 101)
-%     'mode'        whether the sample data is linear ('l') or circular ('c')
-%                   (for example, in the case 'samples' is the phase of an
-%                   oscillation)
-%     'show'        display the mean PETH (default = 'on' when no outputs are
-%                   requested and 'off' otherwise)
-%     'smooth'      standard deviation for Gaussian kernel (default = 1 bin)
-%                   applied to the mean peri-event activity 'm' (note, no
-%                   smoothing will be applied to the output 'matrix')
-%     'title'       if the results are displayed ('show' = 'on'), specify a
-%                   desired title (default is deduced by variable names)
+%     'durations'    durations before and after synchronizing events for each
+%                    trial (in s) (default = [-1 1])
+%     'nBins'        number of time bins around the events (default = 101)
+%     'fast'         if 'off' (default), sort 'samples' and 'events' before
+%                    operating, otherwise they are expected to be sorted
+%                    (has no effect if samples isn't a column vector)
+%     'mode'         whether the sample data is linear ('l') or circular ('c')
+%                    (for example, in the case 'samples' is the phase of an
+%                    oscillation)
+%     'show'         display the mean PETH (default = 'on' when no outputs are
+%                    requested and 'off' otherwise)
+%     'smooth'       standard deviation for Gaussian kernel (default = 1 bin)
+%                    applied to the mean peri-event activity 'm' (note, no
+%                    smoothing will be applied to the output 'matrix')
+%     'title'        if the results are displayed ('show' = 'on'), specify a
+%                    desired title (default is deduced by variable names)
 %     <plot options> any other property (and all the properties that follow)
-%                   will be passed down to "plot" (e.g. 'r', 'linewidth', etc)
-%                   Because all the following inputs are passed down to "plot",
-%                   make sure you put these properties last.
+%                    will be passed down to "plot" (e.g. 'r', 'linewidth', etc)
+%                    Because all the following inputs are passed down to "plot",
+%                    make sure you put these properties last.
 %    =========================================================================
 %
 %  OUTPUT
 %
-%    matrix         a matrix containing the counts of a point process (for 
-%                   timestamp data) or the avarage activity (for a continous
-%                   signal) around the synchronizing events. Each column
-%                   corresponds to a particular delay around the event (delay
-%                   value indicated in timeBins), and each row corresponds to
-%                   a particular instance of "events"
-%    timeBins       a vector of time bin delay values corresponding the columns
-%                   of the matrix
-%    mean           average activity across all events
+%    matrix          a matrix containing the counts of a point process (for 
+%                    timestamp data) or the avarage activity (for a continous
+%                    signal) around the synchronizing events. Each column
+%                    corresponds to a particular delay around the event (delay
+%                    value indicated in timeBins), and each row corresponds to
+%                    a particular instance of "events"
+%    timeBins        a vector of time bin delay values corresponding the columns
+%                    of the matrix
+%    mean            average activity across all events
 %
 %  EXAMPLE
+%
 %    % show mean spiking activity around the stimuli:
 %    PETH(spikes(:,1),stimuli); 
 %
@@ -72,22 +76,22 @@ function varargout = PETH(samples, events, varargin)
 %  SEE
 %
 %    See also Sync, SyncHist, SyncMap, PlotSync, PETHTransition.
-%
+
 % Copyright (C) 2018-2024 by Ralitsa Todorova & Michaël Zugaro
 %
 % This program is free software; you can redistribute it and/or modify
 % it under the terms of the GNU General Public License as published by
 % the Free Software Foundation; either version 3 of the License, or
 % (at your option) any later version.
-%
 
 % default values
 duration = [-1 1];
+fast = 'off';
 namestring = [inputname(1) ', synchronised to ' inputname(2)];
 pictureoptions = {};
 smooth = 1;
 nBins = 101;
-if nargout<1
+if nargout < 1
     show = 'on';
 else
     show = 'off';
@@ -95,7 +99,7 @@ end
 mode = 'l';
 
 for i = 1:2:length(varargin)
-    switch(lower(varargin{i}))
+    switch lower(varargin{i})
         case 'durations'
             duration = varargin{i+1};
             if ~isvector(duration) || length(duration) ~= 2
@@ -111,6 +115,11 @@ for i = 1:2:length(varargin)
             if ~isvector(nBins) || length(nBins) ~= 1
                 error('Incorrect value for property ''nBins'' (type ''help <a href="matlab:help PETH">PETH</a>'' for details).');
             end
+        case 'fast'
+            fast = varargin{i+1};
+      if ~isastring(fast,'on','off')
+				error('Incorrect value for property ''fast'' (type ''help <a href="matlab:help Sync">Sync</a>'' for details).');
+      end
         case 'show'
             show = varargin{i+1};
             if ~isastring(show,'on','off')
@@ -154,7 +163,7 @@ if size(samples,2) == 2 % if the provided data is a signal rather than events
     if strcmpi(show,'on'), plot(t', m, pictureoptions{:}); end
 else
     % samples are a point process
-    [sync, j] = Sync(samples, events, 'durations', duration);
+    [sync, j] = Sync(samples,events,'durations',duration,'fast',fast);
     mat = zeros(size(events,1),nBins);
     t = linspace(duration(1),duration(2),nBins+1); % nBins+1 chosen to match previous behavior of Bins
     time_bin = t(2) - t(1);
