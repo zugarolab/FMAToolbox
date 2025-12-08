@@ -1,17 +1,10 @@
 function varargout = PETH(samples, events, varargin)
 
 % PETH - Compute a peri-event time histogram relative to synchronizing events
-% [mat,t,m] = PETH(data,events,<options>)
-% 'mat' is a matrix where each row is a peri-event time histogram (PETH)
-% centered on a single event
-%
-% Select samples that fall around synchronizing events, and make their
-% timestamps relative to the synchronizing events. This can be used to
-% build e.g. spike raster plots or successive evoked potentials
 %
 %  USAGE
 %
-%    [matrix,t,mean] = PETH(samples,events,<options>)
+%    [mat,t,mean] = PETH(samples,events,<options>)
 %
 %  INPUT
 %
@@ -53,15 +46,16 @@ function varargout = PETH(samples, events, varargin)
 %
 %  OUTPUT
 %
-%    matrix          a matrix containing the counts of a point process (for 
+%    mat             matrix containing the counts of a point process (for 
 %                    timestamp data) or the avarage activity (for a continous
 %                    signal) around the synchronizing events. Each column
 %                    corresponds to a particular delay around the event (delay
 %                    value indicated in timeBins), and each row corresponds to
-%                    a particular instance of "events"
-%    timeBins        a vector of time bin delay values corresponding the columns
-%                    of the matrix
-%    mean            average activity across all events
+%                    a synchronizing event ('mat' is a cell array when 'group'
+%                    is provided)
+%    timeBins        time bin delay values corresponding columns of 'mat'
+%    mean            average activity across all events (a cell array when 'group' 
+%                    is provided)
 %
 %  EXAMPLE
 %
@@ -80,7 +74,7 @@ function varargout = PETH(samples, events, varargin)
 %
 %    See also Sync, SyncHist, SyncMap, PlotSync, PETHTransition.
 
-% Copyright (C) 2018-2024 by Ralitsa Todorova & Michaël Zugaro
+% Copyright (C) 2018-2025 by Ralitsa Todorova & Michaël Zugaro, Pietro Bozzo
 %
 % This program is free software; you can redistribute it and/or modify
 % it under the terms of the GNU General Public License as published by
@@ -94,7 +88,7 @@ fast = 'off';
 group = [];
 mode = 'l';
 smooth = 1;
-namestring = [inputname(1) ', synchronised to ' inputname(2)];
+namestring = replace([inputname(1) ' synchronised to ' inputname(2)],'_','\_');
 pictureoptions = {};
 if nargout < 1
     show = 'on';
@@ -154,7 +148,14 @@ for i = 1 : 2 : length(varargin)
     end
 end
 
-if size(samples,2) == 2 % if the provided data is a signal rather than events
+if isempty(group)
+    groups = 1;
+else
+    groups = unique(group);
+end
+
+if size(samples,2) == 2
+    % samples is a signal
     t = linspace(duration(:,1),duration(2),nBins);
     mat_t = bsxfun(@plus,events,t);
     dt = diff(samples(:,1));
@@ -170,26 +171,45 @@ if size(samples,2) == 2 % if the provided data is a signal rather than events
         m = atan2(smoothed(:,1),smoothed(:,2));
     end
 else
-    % samples are a point process
-    [sync,j] = Sync(samples,events,'durations',duration,'fast',fast);
+    % samples is a point process
+    % synchronize samples to events
+    [sync,Ie,Is] = Sync(samples,events,'durations',duration,'fast',fast);
     t = linspace(duration(1),duration(2),nBins+1); % nBins+1 chosen to match previous behavior of Bins
     time_bin = t(2) - t(1);
-    mat = zeros(size(events,1),nBins);
-    if ~isempty(sync)
-        s = discretize(sync,t);
-        mat(:) = accumarray(sub2ind(size(mat),j,s),1,[numel(mat),1]);
+    % compute matrix
+    if isempty(group)
+        mat = sync2mat(sync,Ie,t,size(events,1),nBins);
+        if strcmpi(show,'on') || nargout > 2
+            m = smoothdata(mean(mat),'gaussian',5*smooth) / time_bin; % factor 5 chosen to match previous behavior of Smooth
+        end
+    else
+        % compute per group
+        group = group(Is);
+        mat = cell(numel(groups),1);
+        m = cell(numel(groups),1);
+        for g = 1 : numel(groups)
+            mat{g} = sync2mat(sync(group==g),Ie(group==g),t,size(events,1),nBins);
+            if strcmpi(show,'on') || nargout > 2
+                m{g} = smoothdata(mean(mat{g}),'gaussian',5*smooth) / time_bin;
+            end
+        end
     end
+    % adjust times and title
     t = (t(1:end-1) + t(2:end)) / 2;
-    if strcmpi(show,'on') || nargout > 2
-        % compute m
-        m = smoothdata(mean(mat),'gaussian',5*smooth) / time_bin; % factor 5 chosen to match previous behavior of Smooth
+    if strcmpi(show,'on')
+        namestring = [namestring ', ' num2str(numel(Ie)) ' x ' num2str(numel(unique(Ie))) ' instances'];
     end
 end
 
 % plot
 if strcmpi(show,'on')
-    plot(t,m,pictureoptions{:});
-    title([replace(namestring,'_','\_') ', ' num2str(numel(j)) ' x ' num2str(numel(unique(j))) ' instances']);
+    if isempty(group)
+        plot(t,m,pictureoptions{:});
+    else
+        hold on
+        cellfun(@(x) plot(t,x,pictureoptions{:}),m)
+    end
+    title(namestring);
 end
 
 if nargout > 0
@@ -204,13 +224,12 @@ end
 
 % --- helper functions ---
 
-%mat = sync2mat(sync,j,t,size(events,1),nBins);
-function mat = sync2mat(sync,j,t,nEvents,nBins)
+function mat = sync2mat(sync,Ie,t,nEvents,nBins)
 
     mat = zeros(nEvents,nBins);
     if ~isempty(sync)
         s = discretize(sync,t);
-        mat(:) = accumarray(sub2ind(size(mat),j,s),1,[numel(mat),1]); % Can maybe change with size(mat) !!
+        mat(:) = accumarray(sub2ind(size(mat),Ie,s),1,[numel(mat),1]); % Can maybe change with size(mat) !!
     end
 
 end
