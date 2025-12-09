@@ -309,6 +309,7 @@
 		{"name":"method", "kind":"namevalue", "type":"choices={'fixed','adaptive','inverse'}"},
 		{"name":"limits", "kind":"namevalue", "type":"numeric"},
 		{"name":"binSize", "kind":"namevalue", "type":"numeric"},
+    {"name":"step", "kind":"namevalue", "type":"integer"},
 		{"name":"smooth", "kind":"namevalue", "type":"numeric"},
 		{"name":"show", "kind":"namevalue", "type":"choices={'on','off'}"}
 	]
@@ -790,6 +791,7 @@
 		{"name":"samples", "kind":"required", "type":"numeric"},
 		{"name":"sync", "kind":"required", "type":"numeric"},
 		{"name":"durations", "kind":"namevalue", "type":"numeric"},
+    {"name":"fast", "kind":"namevalue", "type":"choices={'on','off'}"},
 		{"name":"verbose", "kind":"namevalue", "type":"choices={'on','off'}"}
 	]
 },
