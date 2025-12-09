@@ -42,6 +42,7 @@ binSize = [];
 overlap = [];
 step = [];
 bins = [];
+normalize = @zscore;
 
 for i = 1:2:length(varargin),
     if ~ischar(varargin{i}),
@@ -62,6 +63,11 @@ for i = 1:2:length(varargin),
             step = varargin{i+1};
             if ~isdscalar(step,'>0'),
                 error('Incorrect value for property ''step'' (type ''help <a href="matlab:help ReactivationStrength">ReactivationStrength</a>'' for details).');
+            end
+        case 'fun',
+            normalize = varargin{i+1};
+            if ~isa(normalize,'function_handle')
+                error('Incorrect value for property ''normalize'' (type ''help <a href="matlab:help ReactivationStrength">ReactivationStrength</a>'' for details).');
             end
         case 'bins',
             bins = varargin{i+1};
@@ -111,7 +117,7 @@ for unit = 1:nUnits,
 	dN(:,unit) = CountInIntervals(spikes(id==unit,1),bins);
 end
 %  dN = squeeze(reshape(dN,1,[],nUnits));
-dN = zscore(dN);
+dN = normalize(dN);
 
 % Compute reactivation strengths
 nTemplates = size(templates,3);
