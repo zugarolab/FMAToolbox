@@ -148,11 +148,7 @@ for i = 1 : 2 : length(varargin)
     end
 end
 
-if isempty(group)
-    groups = 1;
-else
-    groups = unique(group);
-end
+groups = unique(group);
 
 if size(samples,2) == 2
     % samples is a signal
@@ -188,7 +184,7 @@ else
         mat = cell(numel(groups),1);
         m = cell(numel(groups),1);
         for g = 1 : numel(groups)
-            mat{g} = sync2mat(sync(group==g),Ie(group==g),t,size(events,1),nBins);
+            mat{g} = sync2mat(sync(group==groups(g)),Ie(group==groups(g)),t,size(events,1),nBins);
             if strcmpi(show,'on') || nargout > 2
                 m{g} = smoothdata(mean(mat{g}),'gaussian',5*smooth) / time_bin;
             end
