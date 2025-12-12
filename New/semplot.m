@@ -1,4 +1,4 @@
-function varargout = semplot(x,y,color,solid,smooth,opt)
+function varargout = semplot(x,y,color,smooth,solid,opt)
 
 %semplot - Plot mean (line) +/- s.e.m. (shaded area) of a matrix 'y'
 %
@@ -48,8 +48,8 @@ arguments
     x
     y = []
     color = [0,0,0]
-    solid = false
     smooth = 0
+    solid = false
     opt.mode (1,1) string {mustBeMember(opt.mode,["sem","std"])} = "sem"
     opt.smooth {mustBeScalarOrEmpty} = []
     opt.solid {mustBeLogicalScalarOrEmpty} = []
@@ -61,7 +61,7 @@ end
 
 % retrocompatibility: syntax semplot(x,y,color,smooth,solid) used to be accepted
 try
-    [x,y,color,smooth,opt] = parseSemPlot(x,y,color,solid,smooth,nargin,opt);
+    [x,y,color,smooth,opt] = parseSemPlot(x,y,color,smooth,solid,nargin,opt);
 catch ME
     throw(ME)
 end
@@ -139,13 +139,13 @@ end
 
 % --- helper functions ---
 
-function [x,y,color,smooth,opt] = parseSemPlot(x,y,color,solid,smooth,n,opt)
+function [x,y,color,smooth,opt] = parseSemPlot(x,y,color,smooth,solid,n,opt)
 
 % this f identifies the used syntax and validates inputs
 % allowed syntaxes:
-%   semplot(y,<color>,<solid>,<smooth>,<opt>) % only if color is text (like 'r')
-%   semplot(x,y,<color>,<solid>,<smooth>,<opt>)
-% specifying  'solid',<value>  always overrides  <solid>, as for 'smooth'
+%   semplot(y,<color>,<smooth>,<solid>,<opt>) % only if color is text (like 'r')
+%   semplot(x,y,<color>,<smooth>,<solid>,<opt>)
+% specifying  'smooth',<value>  always overrides  <smooth>, as for 'solid'
 
 if n < 2
     % syntax: semplot(y)
@@ -158,8 +158,8 @@ elseif ischar(y) || isstring(y)
     if n > 4
         error('semplot:nArgs','1 to 4 positional arguments allowed when omitting argument ''x''')
     end
-    if n > 3, smooth = solid; end
-    if n > 2, solid = color; end
+    if n > 3, solid = smooth; end
+    if n > 2, smooth = color; end
     color = y;
     y = x;
     x = (1 : size(y,2)).';
@@ -190,7 +190,13 @@ if ~opt.isLineSpec
     color = validatecolor(color);
 end
 
-% property-value pairs for 'solid' and 'smooth' have precedence over positional arguments
+% property-value pairs for 'smooth' and 'solid' have precedence over positional arguments
+if ~isempty(opt.smooth)
+    smooth = opt.smooth;
+end
+if ~isscalar(smooth) || ~isnumeric(smooth) || smooth < 0
+    error('Invalid value for argument ''smooth''. Value must be non-negative scalar.')
+end
 if ~isempty(opt.solid)
     solid = opt.solid;
 end
@@ -198,12 +204,6 @@ try
     solid = GeneralLogical(solid);
 catch
     error('Invalid value for argument ''solid''. Value must be logical.')
-end
-if ~isempty(opt.smooth)
-    smooth = opt.smooth;
-end
-if ~isscalar(smooth) || ~isnumeric(smooth) || smooth < 0
-    error('Invalid value for argument ''smooth''. Value must be non-negative scalar.')
 end
 
 if any(isnan(opt.faceColor),'all')
