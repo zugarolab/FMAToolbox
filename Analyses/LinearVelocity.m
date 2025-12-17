@@ -97,13 +97,27 @@ if strcmp(split,'on')
     else
         splitIndx = [1 size(X,1)];
     end
+    % Call the function for each of the segments:
+    V = [];
+    for i = 1:size(splitIndx,1)
+        V = [V; LinearVelocity(X(splitIndx(i,1):splitIndx(i,2),:),smooth, varargin{:})];
+    end
+    return
 end
 
+X0 = X;
+% timebins should be equally distanced
+t = (X(1,1):mode(diff(X(:,1))):X(end,1))';
+ok = ~any(isnan(X),2) & diff([0;X(:,1)])>0;
+X = interp1(X(ok,1),X(ok,:),t);
+X(isnan(X(:,1)),:) = [];
 
-V = [];
-for i = 1:size(splitIndx,1)
-    DX = Diff(X(splitIndx(i,1):splitIndx(i,2),:),'smooth',smooth,'ignorenan',ignorenan);
-    Y = DX(:,2:3).*DX(:,2:3);
-    N = sqrt(Y(:,1)+Y(:,2));
-    V = [V; [X(splitIndx(i,1):splitIndx(i,2),1) N]];
-end
+DX = Diff(X,'smooth',smooth);
+Y = DX(:,2:3).*DX(:,2:3);
+N = sqrt(Y(:,1)+Y(:,2));
+V = [X(:,1) N];
+
+% return same size as previous input
+V = interp1(V(:,1),V,X0(:,1));
+
+
