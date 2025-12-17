@@ -92,7 +92,7 @@ function spikes = GetSpikeTimes(units,varargin)
 % (at your option) any later version.
 
 % Default values
-output = '';
+output = 'numbered';
 session = '';
 if nargin == 0, units = 'all'; end
 
