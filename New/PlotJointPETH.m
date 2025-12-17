@@ -1,4 +1,4 @@
-function PlotJointPETH(PETH1,PETH2,smooth,names,durations)
+function [hs,corrected] = PlotJointPETH(PETH1,PETH2,smooth,names,durations);
 
 %PlotJointPETH - calls JointPETH and plots the results.
 %
@@ -26,7 +26,7 @@ if ~exist('durations','var') || isempty(durations), durations = [-1 1]; end
 if ~exist('names','var'), names = {'PETH1','PETH2','event'}; end 
 
 [hs{1},hs{2},hs{3}] = JointPETH(PETH1,PETH2,smooth);
-ht = linspace(durations(1),durations(2),size(PETH1,2));
+if length(durations)==2,ht = linspace(durations(1),durations(2),size(PETH1,2)); else ht=durations; end
 
 subplot(1,3,1);
 i=1; PlotColorMap(hs{i},'x',ht,'y',ht); %axis square; c=clim;
@@ -40,7 +40,7 @@ set(gca,'FontSize',12,'box','off');
 PlotHVLines(0,'v','w--','linewidth',2); PlotHVLines(0,'h','w--','linewidth',2);
 
 ah = axes('Position',[0 0.2 0 0]);
-semplot(ht,PETH2,'k',smooth)
+semplot(ht,PETH2,'k',false,smooth)
 set(ah,'box','off');% axis off
 ahAxisPosition = axisPosition;
 ahAxisPosition(2) = axisPosition(2)+axisPosition(4); % start above the colormap
@@ -52,7 +52,7 @@ set(gca,'ytick',[]);
 set(gca,'FontSize',12,'box','off');
 
 av = axes('Position',[0.2 0.2 0.2 0]);
-semplot(ht,PETH1,'k',smooth)
+semplot(ht,PETH1,'k',false,smooth)
 set(av,'box','off');% axis off
 avAxisPosition = axisPosition;
 avAxisPosition(3) = avAxisPosition(3)/4; % a quarter of the colormap's height
