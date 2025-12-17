@@ -169,3 +169,8 @@ peak_t(bad) = [];
 
 spindles = [start peak_t stop peak_z];
 spindles = unique(spindles,'rows');
+
+[~,~,unwrappedStart] = Phase(filtered,spindles(:,1));
+[~,~,unwrappedStop] = Phase(filtered,spindles(:,3));
+frequency = ((unwrappedStop(:,end)-unwrappedStart(:,end))/(2*pi))./diff(spindles(:,[1 3]),[],2);
+spindles(:,end+1) = frequency;
