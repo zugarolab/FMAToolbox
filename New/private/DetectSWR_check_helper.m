@@ -81,7 +81,7 @@ while ~done
     idx1 = selected & ~bad; % final ripples
     idx2 = ~selected & ~bad; % non-ripples (yet free from noise as well)
 
-    clf; scatter(matrix(~bad,1),matrix(~bad,2),1,estimated(~bad),'filled'); colormap(Bright); set(gca,'CLim',[0 1])
+    clf; scatter(matrix(~bad,1),matrix(~bad,2),2,estimated(~bad),'filled'); colormap(Bright); set(gca,'CLim',[0 1])
     xlim(xlims); ylim(ylims);
     hold on;
     scatter(swDiffAll(scored),ripPowerAll(scored),20,scores(scored)); scatter(swDiffAll(scored),ripPowerAll(scored),15,scores(scored));
