@@ -225,6 +225,12 @@ function mat = sync2mat(sync,Ie,t,nEvents,nBins)
     mat = zeros(nEvents,nBins);
     if ~isempty(sync)
         s = discretize(sync,t);
+        % correct numerical errors in sync (elements outside 'limits')
+        nan_ind = isnan(s);
+        if any(nan_ind)
+          s(nan_ind & sync > t(end-1)) = nBins;
+          s(nan_ind & sync < t(2)) = 1;
+        end
         mat(:) = accumarray(sub2ind(size(mat),Ie,s),1,[numel(mat),1]); % Can maybe change with size(mat) !!
     end
 
