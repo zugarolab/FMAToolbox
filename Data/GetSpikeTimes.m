@@ -20,10 +20,10 @@ function spikes = GetSpikeTimes(units,varargin)
 %     Properties    Values
 %    -------------------------------------------------------------------------
 %     'output'      output type, either:
-%                     'time', only timestamps (default)
+%                     'time', only timestamps
 %                     'full', timestamps, electrode groups and clusters
 %                     'numbered' timestamps and arbitrary unique identifiers
-%                     corresponding to single units (see EXAMPLE below)
+%                     corresponding to single units (default, see EXAMPLE below)
 %                     'cellexplorer', timestamps, electrode groups and unique
 %                     unit identifiers assigned by CellExplorer (NOTE: identifiers
 %                     can go from 1 to N, artefacts and MUA are excluded; default
@@ -92,7 +92,7 @@ function spikes = GetSpikeTimes(units,varargin)
 % (at your option) any later version.
 
 % Default values
-output = 'numbered';
+output = '';
 session = '';
 if nargin == 0, units = 'all'; end
 
@@ -132,7 +132,7 @@ if isempty(session) && strcmp(output,'cellexplorer')
     error('Incorrect value for property ''output'' (type ''help <a href="matlab:help GetSpikeTimes">GetSpikeTimes</a>'' for details).')
 end
 if isempty(output)
-    if isempty(session), output = 'time';
+    if isempty(session), output = 'numbered';
     else, output = 'cellexplorer'; end
 end
 
