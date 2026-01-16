@@ -148,6 +148,12 @@ for i = 1 : 2 : length(varargin)
     end
 end
 
+if isempty(samples)
+  [varargout{[1,3]}] = deal(nan(1,nBins));
+  varargout{2} = linspace(duration(:,1),duration(2),nBins);
+  return
+end
+
 groups = unique(group);
 
 if size(samples,2) == 2
