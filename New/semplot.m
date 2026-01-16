@@ -19,7 +19,8 @@ function varargout = semplot(x,y,color,smooth,solid,opt)
 %                    to draw shaded area
 %     'smooth'       Gaussian kernel size in number of samples (default is none)
 %     'solid'        if false (default), shaded area is transparent
-%     'faceColor'    shaded area color, default is same as color
+%     'faceColor'    shaded area color, (default = 'color')
+%     'alpha'        shaded area transparency value (default = 0.5)
 %     'legend'       if 'off', plotted elements won't appear in legend
 %                    (default = 'on'); value is also legend label if
 %                    different from 'on'
@@ -27,6 +28,7 @@ function varargout = semplot(x,y,color,smooth,solid,opt)
 %                    (see MATLAB Line Properties)
 %     'patchProp'    cell array of property-value pairs to set shaded area
 %                    properties (see MATLAB Patch Properties)
+%     'ax'           axes on which to plot (default = gca())
 %    =========================================================================
 %
 %  OUTPUT
@@ -54,9 +56,11 @@ arguments
     opt.smooth {mustBeScalarOrEmpty} = []
     opt.solid {mustBeLogicalScalarOrEmpty} = []
     opt.faceColor (:,:) = NaN
+    opt.alpha (1,1) {mustBeNumeric,mustBeGreaterThanOrEqual(opt.alpha,0),mustBeLessThanOrEqual(opt.alpha,1)} = 0.5
     opt.legend (1,1) string = "on"
     opt.lineProp (:,1) cell = {}
     opt.patchProp (:,1) cell = {}
+    opt.ax (1,1) = gca
 end
 
 % retrocompatibility: syntax semplot(x,y,color,smooth,solid) used to be accepted
@@ -70,9 +74,9 @@ end
 if isvector(y)
     try
         if opt.isLineSpec
-            handles = plot(x,Smooth(y,smooth),color,'linewidth',2,opt.lineProp{:});
+            handles = plot(opt.ax,x,Smooth(y,smooth),color,'linewidth',2,opt.lineProp{:});
         else
-            handles = plot(x,Smooth(y,smooth),'color',color,'linewidth',2,opt.lineProp{:});
+            handles = plot(opt.ax,x,Smooth(y,smooth),'color',color,'linewidth',2,opt.lineProp{:});
         end
     catch ME
         % catch invalid LineSpec
@@ -107,7 +111,7 @@ y_mean = Smooth(y_mean,smooth);
 
 % plot shaded area
 try
-    handles = fill(xx,yy,opt.faceColor,'EdgeAlpha',0,'FaceAlpha',opt.faceAlpha,opt.patchProp{:});
+    handles = fill(opt.ax,xx,yy,opt.faceColor,'EdgeAlpha',0,'FaceAlpha',opt.faceAlpha,opt.patchProp{:});
 catch ME
     % catch invalid LineSpec
     throw(ME)
@@ -120,9 +124,9 @@ end
 hold on
 try
     if opt.isLineSpec
-        h = plot(x,y_mean,color,'linewidth',2,opt.lineProp{:});
+        h = plot(opt.ax,x,y_mean,color,'linewidth',2,opt.lineProp{:});
     else
-        h = plot(x,y_mean,'color',color,'linewidth',2,opt.lineProp{:});
+        h = plot(opt.ax,x,y_mean,'color',color,'linewidth',2,opt.lineProp{:});
     end
 catch ME
     throw(ME)
@@ -222,7 +226,7 @@ if solid
     opt.faceColor = mean([opt.faceColor;1 1 1]);
     opt.faceAlpha = 1;
 else
-    opt.faceAlpha = 0.5;
+    opt.faceAlpha = opt.alpha;
 end
 
 end
