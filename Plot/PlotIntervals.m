@@ -90,7 +90,7 @@ if ~parsed
 			case 'color'
 				color = lower(varargin{i+1});
 				if ~isastring(color,'r','g','b','c','m','y','k','w') && ~isdvector(color,'#3','>=0','<=1')
-					error('Incorrect value for property ''direction'' (type ''help <a href="matlab:help PlotIntervals">PlotIntervals</a>'' for details).');
+					error('Incorrect value for property ''color'' (type ''help <a href="matlab:help PlotIntervals">PlotIntervals</a>'' for details).');
 				end
 			case 'alpha'
                 alpha = varargin{i+1};
