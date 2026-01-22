@@ -27,8 +27,8 @@ function [synchronized,Ie,Is] = Sync(samples,sync,varargin)
 %
 %  OUTPUT
 %
-%    synchronized   resynchronized samples
-%    Ie             index of synchronizing event for each resynchronized sample
+%    synchronized   resynchronized samples (sorted in time)
+%    Ie             index of original synchronizing event for each resynchronized sample
 %    Is             indeces of resynchronized samples in original samples 
 %
 %  EXAMPLE
@@ -90,10 +90,17 @@ for i = 1:2:length(varargin)
     end
 end
 
+% Make sync a column vector
+if size(sync,2) ~= 1
+    sync = sync.';
+end
+
 % Make sure samples and sync events are sorted in time
+sort_samples = [];
+sort_sync = [];
 if ~fast
-    samples = sortrows(samples);
-    sync = sortrows(sync);
+    [samples,sort_samples] = sortrows(samples);
+    [sync,sort_sync] = sort(sync);
 end
 
 nSync = length(sync);
@@ -102,7 +109,7 @@ previous = 1; % index of first sample found in previous cycle
 verbose && fprintf(1,[num2str(nSync) ' synchronizing events to process...\n']);
 for i = 1 : nSync
     % Find samples within time window around this synchronizing event
-  	j = FindInInterval(samples,[sync(i)+durations(1) sync(i)+durations(2)],previous);
+  	j = FindInInterval(samples(:,1),[sync(i)+durations(1) sync(i)+durations(2)],previous);
     if ~isempty(j)
         previous = j(1);
         Is{i} = (j(1) : j(2)).';
@@ -113,3 +120,9 @@ end
 Ie = repelem((1:nSync).',cellfun(@numel,Is),1);
 Is = vertcat(Is{:});
 synchronized = [samples(Is,1)-sync(Ie),samples(Is,2:end)];
+
+% Make Is, Ie point to elements of original samples, sync
+if ~isempty(sort_samples)
+  Is = sort_samples(Is);
+  Ie = sort_sync(Ie);
+end
