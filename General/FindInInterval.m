@@ -36,6 +36,10 @@
 %       % ... do whatever computations here ...
 %    end
 %
+%  NOTE
+%
+%    If 'values' is a row vector, it is transposed before operating
+%
 %  SEE
 %
 %    See also ConsolidateIntervals, SubtractIntervals, ExcludeIntervals,
