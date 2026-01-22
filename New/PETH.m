@@ -120,7 +120,7 @@ for i = 1 : 2 : length(varargin)
             end
         case 'group'
             group = varargin{i+1};
-            if ~isdvector(group)
+            if ~isnumeric(group) || (~isempty(group) && size(group,1) ~= size(samples,1))
                 error('Incorrect value for property ''group'' (type ''help <a href="matlab:help PETH">PETH</a>'' for details).');
             end
         case 'show'
