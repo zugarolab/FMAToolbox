@@ -23,6 +23,7 @@ function PlotColorMap(data,dimm,varargin)
 %     'hgamma'      gamma-like correction for hue (1 = no correction, default)
 %     'bar'         draw a color bar (default = 'off'); if value isn't
 %                   'on' it's used as label for the bar
+%     'barProp'     cell array of ColorBar properties passed to the call of colorbar
 %     'type'        either 'linear' or 'circular' (default 'linear')
 %     'map'         colormap (default = Bright(100,'hgamma',hgamma,'type',type))
 %     'ydir'        either 'normal' (default) or 'reverse' (useful when the
@@ -62,6 +63,7 @@ gamma = 1;
 hg = 0;
 threshold = 0.01;
 drawBar = false;
+barProp = {};
 type = 'linear';
 [y,x] = size(data);
 x = 1:x; y = 1:y;
@@ -125,7 +127,12 @@ for i = 1:2:length(varargin)
             drawBar = ~strcmpi(varargin{i+1},'off');
       			if ~isastring(barLabel)
     	  		  	error('Incorrect value for property ''bar'' (type ''help <a href="matlab:help PlotColorMap">PlotColorMap</a>'' for details).');
-    		  	end
+            end
+        case 'barprop'
+            barProp = varargin{i+1};
+            if ~iscell(barProp)
+    	  		  	error('Incorrect value for property ''barProp'' (type ''help <a href="matlab:help PlotColorMap">PlotColorMap</a>'' for details).');
+            end
   	  	case 'type'
   			    type = lower(varargin{i+1});
             if ~isastring(type,'linear','circular')
@@ -206,7 +213,7 @@ end
 % Color map and bar
 colormap(ax,map);
 if drawBar
-    b = colorbar(ax,'vert','TickDirection','out','FontSize',12,'Color',[0,0,0],'Box','off','LineWidth',1.7);
+    b = colorbar(ax,'vert','TickDirection','out','FontSize',12,'Color',[0,0,0],'Box','off','LineWidth',1.7,barProp{:});
         if ~strcmpi(barLabel,'on'), b.Label.String = barLabel; end
     set(fig,'currentaxes',ax);
 end
