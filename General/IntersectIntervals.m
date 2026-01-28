@@ -44,16 +44,18 @@ end
 % intervals of b depending on whether they would fall outside / inside original intervals of b
 % (this requires them to be sorted and non overlapping)
 
-% exclude intervals with any NaNs, transpose and flatten to use discretize
+% exclude intervals with any NaNs, consolidate and flatten to use discretize
 a = a(~any(isnan(a),2),:);
-a = a.'; a = a(:);
+a = ConsolidateIntervals(a).';
+a = a(:);
 a_orig = a;
 b = b(~any(isnan(b),2),:);
-b = b.'; b = b(:);
+b = ConsolidateIntervals(b).';
+b = b(:);
 
-% validate input
-if any(a(2:end) < a(1:end-1)) || any(b(2:end) < b(1:end-1))
-    error('IntersectIntervals:inputFormat','Inputs must be sorted lists of non-overlapping intervals')
+if isempty(b)
+  [intersection,Ia,Ib] = deal([]);
+  return
 end
 
 % ind(i) is odd iff a(i) falls in an interval of b
