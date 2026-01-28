@@ -1,4 +1,4 @@
-function [consolidated,target] = ConsolidateIntervals(intervals,varargin)
+function [consolidated,target] = ConsolidateIntervals(intervals,opt)
 
 %ConsolidateIntervals - Consolidate intervals.
 %
@@ -31,126 +31,77 @@ function [consolidated,target] = ConsolidateIntervals(intervals,varargin)
 %    See also SubtractIntervals, ExcludeIntervals, IntersectIntervals, InIntervals,
 %    Restrict, FindInInterval, CountInIntervals, PlotIntervals.
 
-% Copyright (C) 2004-2011 by Michaël Zugaro
+% Copyright (C) 2004-2011 by Michaël Zugaro, 2026 by Pietro Bozzo (vectorized algorithm)
 %
 % This program is free software; you can redistribute it and/or modify
 % it under the terms of the GNU General Public License as published by
 % the Free Software Foundation; either version 3 of the License, or
 % (at your option) any later version.
 
-% Default values
-strict = 'off';
-epsilon = 0;
-
-if nargin < 1
-  error('Incorrect number of parameters (type ''help <a href="matlab:help ConsolidateIntervals">ConsolidateIntervals</a>'' for details).');
-end
-
-if mod(length(varargin),2) ~= 0
-  error('Incorrect number of parameters (type ''help <a href="matlab:help ConsolidateIntervals">ConsolidateIntervals</a>'' for details).');
-end
-
-% Parse options
-for i = 1:2:length(varargin)
-	if ~ischar(varargin{i})
-		error(['Parameter ' num2str(i+firstIndex) ' is not a property (type ''help <a href="matlab:help ConsolidateIntervals">ConsolidateIntervals</a>'' for details).']);
-	end
-	switch(lower(varargin{i}))
-		case 'strict'
-			strict = lower(varargin{i+1});
-			if ~isastring(strict,'on','off')
-				error('Incorrect value for property ''strict'' (type ''help <a href="matlab:help ConsolidateIntervals">ConsolidateIntervals</a>'' for details).');
-			end
-		case 'epsilon'
-			epsilon = varargin{i+1};
-			if ~isdscalar(epsilon,'>=0')
-				error('Incorrect value for property ''epsilon'' (type ''help <a href="matlab:help ConsolidateIntervals">ConsolidateIntervals</a>'' for details).');
-			end
-        otherwise
-			error(['Unknown property ''' num2str(varargin{i}) ''' (type ''help <a href="matlab:help ConsolidateIntervals">ConsolidateIntervals</a>'' for details).']);
-	end
+arguments
+    intervals (:,2)
+    opt.strict {mustBeGeneralLogical} = false
+    opt.epsilon (1,1) {mustBeGreaterThanOrEqual(opt.epsilon,0)} = 0
 end
 
 if isempty(intervals)
-    consolidated = intervals;
-    target = intervals;
+    [consolidated,target] = deal(intervals);
     return
 end
 
-original = intervals;
-
-% Mark already consolidated intervals to avoid retesting them
-done = false(size(intervals,1));
-
-if strcmp(strict,'on')
-	for i = 1:size(intervals,1)
-		if done(i), continue; end
-		% Lower (L) and upper (U) interval bounds
-		L = intervals(:,1);
-		U = intervals(:,2);
-		% Current interval is I = [l u], but we replace it with [l-e u+e] to take parameter 'epsilon' into account
-		l = L(i)-epsilon;u = U(i)+epsilon;
-		% Find all intervals that overlap with I:
-		% 1) one of their bounds is strictly inside I
-		% (their upper bound is greater than l, and their lower bound is lower than u)
-		intersect = (U > l & L < u);
-		% 2) they contain I
-		if u == l
- 			% Special case: I is a singleton
- 			intersect = intersect | (L < l & U > u);
-		else
-			intersect = intersect | (L <= l & U >= u);
-		end
-		% Determine smallest enclosing interval
-		m = min(L(intersect));
-		M = max(U(intersect));
-		% Consolidate
-		intervals(intersect,:) = repmat([m M],sum(intersect),1);
-		done(intersect) = 1;
-	end
-else
-	% same as above, but replacing e.g. < with <=
-	for i = 1:size(intervals,1)
-		if done(i), continue; end
-		% Lower (L) and upper (U) interval bounds
-		L = intervals(:,1);
-		U = intervals(:,2);
-		% Current interval is I = [l u], but we replace it with [l-e u+e] to take parameter 'epsilon' into account
-		l = L(i)-epsilon;u = U(i)+epsilon;
-		% Find all intervals that overlap with I:
-		% 1) one of their bounds is inside I
-		% (their upper bound is greater than or equal to l, and their lower bound is lower than or equal to u)
-		intersect = (U >= l & L <= u);
-		m = min(L(intersect));
-		M = max(U(intersect));
-		% Consolidate
-		intervals(intersect,:) = repmat([m M],sum(intersect),1);
-		done(intersect) = 1;
-	end
+% default values
+opt.strict = GeneralLogical(opt.strict);
+if ~opt.strict && ~opt.epsilon
+    opt.epsilon = 1e-10;
 end
 
-% Sort intervals in ascending order (and store reordering information so we can reuse it later)
-[intervals,order] = sortrows(intervals,1);
-
-% Assign each consolidated interval an ID (in ascending order)
-transitions = [1;find(diff(intervals(:,1))~=0)+1;length(intervals(:,1))];
-for i = 1:length(transitions)-1
-	target(transitions(i):transitions(i+1)) = repmat(i,transitions(i+1)-transitions(i)+1,1);
+% widen intervals
+if opt.epsilon
+    intervals = intervals + [-1,1]*opt.epsilon;
 end
 
-% Reorder consolidated interval IDs
-target(order) = target;
-target = target';
+% sort by start time, remove empty intervals
+is_empty = intervals(:,1) > intervals(:,2); % remember empty intervals for target
+[~,empty_sort_ind] = sortrows(intervals);
+intervals = intervals(~is_empty,:);
+[intervals,orig_sort_ind] = sortrows(intervals);
 
-consolidated = unique(intervals,'rows');
+% flatten and argsort to find overlaps
+intervals = intervals.';
+intervals = intervals(:);
+[~,ind] = sort(intervals);
 
-% Remove empty intervals from output...
-empty = diff(consolidated,1,2) < 0;
-consolidated(empty,:) = [];
-% ... and update target IDs
-empty = diff(original,1,2) < 0;
-[t,i] = sortrows([target empty]);
-target(i) = t(:,1)-cumsum(t(:,2));
+% remove all ind which are followed by at least one smaller element
+m = min(ind(end-1:end));
+is_ok = true(size(ind));
+is_ok(end-1) = ind(end-1) < ind(end);
+for i = 2 : numel(ind)-1
+    is_ok(end-i) = ind(end-i) < m;
+    m = min(ind(end-i),m);
+end
+ind = ind(is_ok);
 
-% Empty intervals belong to none
-target(empty) = NaN;
+% remove consecutive even elements (they all represent interval ends)
+is_even = ~mod(ind,2);
+is_not_consecutive = [~is_even(1:end-1) | ~is_even(2:end); true];
+ind = ind(is_not_consecutive);
+
+% rebuild intervals
+consolidated = reshape(intervals(ind),2,[]).';
+
+% re-shorten intervals
+if opt.epsilon
+    consolidated = consolidated + [1,-1]*opt.epsilon;
+end
+
+% target
+if nargout > 1
+    is_ok(is_ok) = is_not_consecutive;
+    is_ok = is_ok(1:2:end);
+    target = cumsum(is_ok);
+    % resort to match original order
+    [~,inv_sort_ind] = sort(orig_sort_ind);
+    sorted_target = nan(size(is_empty)); % empty intervals belong to NaN
+    sorted_target(~is_empty(empty_sort_ind)) = target(inv_sort_ind);
+    target = sorted_target;
+end
