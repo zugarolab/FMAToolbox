@@ -61,10 +61,15 @@ if opt.epsilon
 end
 
 % sort by start time, remove empty intervals
-is_empty = intervals(:,1) > intervals(:,2); % remember empty intervals for target
+is_empty = intervals(:,1) > intervals(:,2) | any(isnan(intervals),2); % remember empty intervals for target
 [~,empty_sort_ind] = sortrows(intervals);
 intervals = intervals(~is_empty,:);
 [intervals,orig_sort_ind] = sortrows(intervals);
+if isempty(intervals)
+    consolidated = intervals;
+    target = nan(size(is_empty));
+    return
+end
 
 % flatten and argsort to find overlaps
 intervals = intervals.';
