@@ -1,4 +1,4 @@
-function [samples, originalIndex, intervalID] = Restrict(samples,intervals,varargin)
+function [samples, originalIndex, intervalID] = Restrict(samples,intervals,opt)
 
 %Restrict - Keep only samples that fall in a given list of time intervals.
 %
@@ -44,117 +44,77 @@ function [samples, originalIndex, intervalID] = Restrict(samples,intervals,varar
 % the Free Software Foundation; either version 3 of the License, or
 % (at your option) any later version.
 
-% Default values
-shift = 'off';
-matrix = false;
-verbose = true;
-transpose = false;
-try samples(isnan(samples(:,1)),:) = []; end
-
-% Check number of parameters
-if nargin < 2 || mod(length(varargin),2) ~= 0
-    error('Incorrect number of parameters (type ''help <a href="matlab:help Restrict">Restrict</a>'' for details).');
+arguments
+    samples
+    intervals (:,2)
+    opt.shift {mustBeGeneralLogical} = false
+    opt.matrix {mustBeGeneralLogical} = false
+    opt.verbose {mustBeGeneralLogical} = true
 end
 
-% Check parameters
+% handle empty input
+opt.verbose = GeneralLogical(opt.verbose);
+if isempty(intervals)
+    samples = []; originalIndex = []; intervalID = [];
+    opt.verbose && fprintf(1,'Restriction over empty intervals.\n');
+    return
+end
+if isempty(samples)
+    samples = []; originalIndex = []; intervalID = [];
+    opt.verbose && fprintf(1,'No samples to restrict.\n');
+    return
+end
+
+samples = samples(~isnan(samples(:,1)),:);
 intervals = double(intervals);
 samples = double(samples);
-if ~isdmatrix(intervals) || size(intervals,2) ~= 2
-    error('Incorrect intervals (type ''help <a href="matlab:help Restrict">Restrict</a>'' for details).');
-end
+opt.shift = GeneralLogical(opt.shift);
+opt.matrix = GeneralLogical(opt.matrix);
 
-% Parse parameter list
-for i = 1:2:length(varargin)
-	if ~ischar(varargin{i})
-		error(['Parameter ' num2str(i+2) ' is not a property (type ''help <a href="matlab:help Restrict">Restrict</a>'' for details).']);
-	end
-	switch lower(varargin{i})
-		case 'shift'
-			shift = varargin{i+1};
-            if ~isastring(shift,'on','off')
-                error('Incorrect value for property ''shift'' (type ''help <a href="matlab:help Restrict">Restrict</a>'' for details).');
-            end
-        case 'matrix'
-            matrix = varargin{i+1};
-            if isastring(matrix,'on','off')
-                matrix = strcmp(matrix,'on');
-            else
-                if ~isscalar(matrix) || ~(isnumeric(matrix) || islogical(matrix)) || ~ismember(matrix,[1,0])
-                    error('Incorrect value for property ''matrix'' (type ''help <a href="matlab:help Restrict">Restrict</a>'' for details).');
-                end
-            end
-        case 'verbose'
-            verbose = varargin{i+1};
-            if isastring(verbose,'on','off')
-                verbose = strcmp(verbose,'on');
-            else
-                if ~isscalar(verbose) || ~(isnumeric(verbose) || islogical(verbose)) || ~ismember(verbose,[1,0])
-                    error('Incorrect value for property ''verbose'' (type ''help <a href="matlab:help Restrict">Restrict</a>'' for details).');
-                end
-            end
-        otherwise
-			error(['Unknown property ''' num2str(varargin{i}) ''' (type ''help <a href="matlab:help Restrict">Restrict</a>'' for details).']);
-	end
-end
-
-if ~matrix && size(samples,1) == 1
+transpose = false;
+if ~opt.matrix && size(samples,1) == 1
     samples = samples(:);
     transpose = true;
 end
 
-if isempty(intervals)
-    samples = []; originalIndex = []; intervalID = [];
-    verbose && fprintf(1,'Restriction over empty intervals.\n');
-    return
-end
+% 1. Restrict
 
-if isempty(samples)
-    samples = []; originalIndex = []; intervalID = [];
-    verbose && fprintf(1,'No samples to restrict.\n');
-    return
-end
+% consolidate intervals to use vectorized algorithm
+intervals = ConsolidateIntervals(intervals);
 
-% Restrict
-% prepare flattened interval array for faster vectorized algorithm
-flattenedIntervals = intervals.';
-% extend intervals by a small amount to compensate for vectorization, which
-% treats intervals as right-open, i.e., [t1,t2)
+% flatten and extend intervals by a small amount to compensate for vectorization, which treats intervals as right-open, i.e., [t1,t2)
 deltaT = 10^5 * eps;
+flattenedIntervals = intervals.';
 interIntervalDistance = intervals(2:end,1) - intervals(1:end-1,2);
 flattenedIntervals(2,[interIntervalDistance > deltaT;true]) = flattenedIntervals(2,[interIntervalDistance > deltaT;true]) + deltaT;
 flattenedIntervals = flattenedIntervals(:);
-% check if faster algorithm can be used
-if all(flattenedIntervals(2:end) >= flattenedIntervals(1:end-1))
-    % assign and index to each sample time, only odd indeces belong to intervals
-    ind = discretize(samples(:,1),flattenedIntervals);
-    % identify samples to keep; status(i) == 1 iff samples(i,1) falls in an interval
-    status = mod(ind,2) == 1;
-    % get index of interval for every valid sample
-    if nargout > 2 || strcmp(shift,'on')
-        intervalID = (ind(status) + 1) / 2;
-    end
-else
-    % original algorithm
-    [status,interval] = InIntervals(samples,intervals);
-    intervalID = interval(status);
+
+% assign and index to each sample time, only odd indeces belong to intervals
+ind = discretize(samples(:,1),flattenedIntervals);
+status = mod(ind,2) == 1; % status(i) == 1 iff samples(i,1) falls in an interval
+
+% get index of interval for every valid sample
+if nargout > 2 || opt.shift
+    intervalID = (ind(status) + 1) / 2;
 end
+
 % restrict samples
 samples = samples(status,:);
+
 % get index of samples to keep in original samples
 if nargout > 1
     originalIndex = find(status);
 end
 
-% Shift?
-if strcmp(shift,'on') && ~isempty(samples)
-	% Samples in each interval will be shifted next to end of the previous interval
-	% Let dti be the time difference between interval i and interval i+1,
-    % then interval n+1 must be shifted by sum_i from 1 to n of dti
-	% 1) Compute the cumulative shifts dt1, dt1+dt2, dt1+dt2+dt3, ... 
+% 2. Shift
+if opt.shift && ~isempty(samples)
+	% samples in each interval will be shifted next to end of the previous interval
+	% let dti be the time difference between interval i and interval i+1, then interval n+1 must be shifted by sum_i from 1 to n of dti
+	% 1) compute the cumulative shifts dt1, dt1+dt2, dt1+dt2+dt3, ... 
 	cumulativeShift = [0;cumsum(interIntervalDistance)];
-	% 2) Assign cumulative shifts to samples
+	% 2) assign cumulative shifts to samples
 	shifts = cumulativeShift(intervalID);
-	% 3) Shift
+	% 3) shift
 	samples(:,1) = samples(:,1) - shifts - intervals(1,1);
 end
 
