@@ -1,27 +1,26 @@
-function [intersection,Ia,Ib] = IntersectIntervals(a,b)
+function varargout = IntersectIntervals(a)
 
-%IntersectIntervals - Find intersection of two sets of sorted intervals.
+%IntersectIntervals - Find intersection between sets of sorted intervals.
 %
-% Find intersection I of two sets of intervals A and B, e.g.,
+% Find intersection I of sets of intervals A, B, C, ...; e.g.,
 %
 %   A : [10,20] [25,35] [45,50],    B : [15,30] [55,70],    then
 %   I : [15,20] [25,30]
 %
 %  USAGE
 %
-%    [intersection,Ia,Ib] = IntersectIntervals(a,b)
+%    [intersection,Ia,Ib,Ic,...] = IntersectIntervals(a,b,c,...)
 %
-%    a, b           lists of sorted non-overlapping (start,stop) pairs, i.e., 
-%                   first column is in ascending order and intervals of the
-%                   list are not overlapping (see ConsolidateIntervals to make
-%                   an interval list non overlapping); intervals containing
+%    a, b, c, ...   any number of lists of (start,stop) pairs, intervals containing
 %                   NaNs are ignored
 %
 %  OUTPUT
 %
 %    intersection   intersection intervals
-%    Ia (Ib)        for each intersection interval, the index of the original
-%                   interval in a (b) which contains it
+%    Ii             for each intersection interval, the index of the original
+%                   interval in i which contains it
+%                   NOTE: for now, ONLY Ia is meaningful, computation of all other 
+%                   indeces needs to be correctly implemented
 %
 %  SEE
 %
@@ -35,27 +34,43 @@ function [intersection,Ia,Ib] = IntersectIntervals(a,b)
 % the Free Software Foundation; either version 3 of the License, or
 % (at your option) any later version.
 
-arguments
+arguments (Repeating)
     a (:,2)
-    b (:,2)
 end
 
 % the algorithm exploits the fact that, when both interval lists are flattened, elements of a fall in even / odd
 % intervals of b depending on whether they would fall outside / inside original intervals of b
 % (this requires them to be sorted and non overlapping)
 
-% exclude intervals with any NaNs, consolidate and flatten to use discretize
-a = a(~any(isnan(a),2),:);
-a = ConsolidateIntervals(a).';
-a = a(:);
+if nargout > numel(a) + 1
+    error('IntersectIntervals:nOuts','Too many indeces requested')
+end
+
+% return single interval unchanged
+if isscalar(a)
+    varargout{1} = a{1}; varargout{2} = (1 : size(a{1},1)).';
+    return
+end
+
+% 1: more than 2 intervals, recursive call
+indeces = {};
+if numel(a) > 2
+    [out{1:numel(a)}] = IntersectIntervals(a{2:end});
+    a = [a(1),out(1)];
+    indeces = out(3:end);
+end
+
+% 2: intersect 2 interval sets
+
+% consolidate and flatten to use discretize
+a = cellfun(@(x) ConsolidateIntervals(x).', a,'UniformOutput',false);
+b = a{2}(:);
+a = a{1}(:);
 a_orig = a;
-b = b(~any(isnan(b),2),:);
-b = ConsolidateIntervals(b).';
-b = b(:);
 
 if isempty(b)
-  [intersection,Ia,Ib] = deal([]);
-  return
+    [varargout{1:3}] = deal([]);
+    return
 end
 
 % ind(i) is odd iff a(i) falls in an interval of b
@@ -76,7 +91,7 @@ keep_ind = repelem(keep_ind,2);
 ind = ind(keep_ind);
 a = a(keep_ind);
 if isempty(ind)
-    [intersection,Ia,Ib] = deal([]);
+    [varargout{1:3}] = deal([]);
     return
 end
 
@@ -99,9 +114,14 @@ intersection(new_odd_ind) = a(odd_ind);
 % return as interval list
 intersection = [intersection(1:2:end),intersection(2:2:end)];
 
+% output
+varargout{1} = intersection;
 if nargout > 1
-    Ia = ceil(discretize(intersection(:,1),a_orig)/2);
+    varargout{2} = ceil(discretize(intersection(:,1),a_orig)/2); % Ia
 end
 if nargout > 2
-    Ib = ceil(new_ind(1:2:end)/2);
+    varargout{3} = ceil(new_ind(1:2:end)/2); % Ib
+end
+if nargout > 3
+    varargout = [varargout,indeces]; % Ic, Id, ...
 end
