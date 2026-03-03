@@ -1,14 +1,27 @@
-function y = linspaceVector(d1, d2)
+function y = linspaceVector(start,stop,n)
 
-%linspaceVector - produce linearly spaced vector with multiple [start stop] points. 
-% It's like linspace, but d1 and d2 and vectors
-% It's a faster equivalent to a loop calling linscape for each [d1 d2] pair:
-% for i=1:length(d1),y = [y;linspace(d1(i),d2(i))']; end
+%linspaceVector - Produce linearly spaced vector with multiple [start stop] points.
 %
-% Example:
-% linspaceVector([2;5;23],[2;8;23]) = [2;5;6;7;8;23]
+% Shorthand for a loop calling the colon operator for each [start stop] pair:
+%
+% y = [];
+% for i = 1 : length(start) 
+%     y = [y;(start(i):n(i):stop(i)).'];
+% end
+%
+%  USAGE
+%
+%    y = linspaceVector(start,stop,n)
+%
+%    start, stop    start and stop pairs
+%    n              increment for each [start, stop] pair (default is 1)
+%    
+%  EXAMPLE
+%
+%    >> linspaceVector([2;5;23],[2;8;23])
+%    [2;5;6;7;8;23]
 
-% Copyright (C) 2019 by Ralitsa Todorova
+% Copyright (C) 2019 by Ralitsa Todorova & (C) 2026 by Pietro Bozzo
 %
 % This program is free software; you can redistribute it and/or modify
 % it under the terms of the GNU General Public License as published by
@@ -16,24 +29,22 @@ function y = linspaceVector(d1, d2)
 % (at your option) any later version.
 
 arguments
-    d1 (:,1)
-    d2 (:,1)
+    start (:,1)
+    stop (:,1)
+    n (:,1) = []
 end
-
-n = d2-d1;
 
 if isempty(n)
-    y = [];
-    return
+    n = ones(size(start));
+elseif isscalar(n)
+    n = repelem(n,numel(start),1);
+end
+if numel(start) ~= numel(stop) || numel(start) ~= numel(n) || numel(stop) ~= numel(n)
+    error('linspaceVector:inputSize','Arguments ''start'', ''stop'', and ''n'' must have the same number of elements')
 end
 
-% repeat original value n times
-y0 = repelem(d1,n+1,1);
-nRows = size(y0,1);
-
-% add 1 for each additional value after d1
-indicesOfOriginalValues = cumsum([0;n(1:end-1)]+1);
-originalValues = Unfind(indicesOfOriginalValues,nRows);
-toAdd = CumSum(ones(nRows,1),originalValues)-1;
-
-y = y0 + toAdd;
+y = cell(size(start));
+for i = 1 : numel(start)
+    y{i} = start(i) : n(i) : stop(i);
+end
+y = [y{:}].';
