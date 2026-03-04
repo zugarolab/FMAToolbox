@@ -152,7 +152,7 @@ for unit = 1:nUnits
         if strcmp(lastwarn,'Iteration limit reached.') % if the algorhithm failed to converge
             continue
         end
-        w(nUnits,:,set) = weights;
+        w(unit,:,set) = weights;
         prediction = linkFunction(source(setID==set,:),weights);
         predictions(setID==set,unit) = prediction;
         errors(set,1) = average(abs(target(setID==set,unit) - prediction));
