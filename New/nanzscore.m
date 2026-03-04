@@ -19,7 +19,7 @@ x(abs(x)==Inf)=nan;
 mu = mean(x,dim,'omitnan');
 sigma = std(x,flag,dim,'omitnan');
 sigma0 = sigma;
-sigma0(sigma0==0) = 1;
+sigma0(sigma0<eps) = 1;
 z = bsxfun(@minus,x, mu);
 z = bsxfun(@rdivide, z, sigma0);
 
