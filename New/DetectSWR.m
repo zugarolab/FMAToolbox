@@ -203,6 +203,7 @@ addParameter(p, 'MAXGIGS', 16, @isnumeric); % GigaBytes
 addParameter(p, 'noPrompts', true, @islogical);
 addParameter(p, 'useSPW', true, @islogical);
 addParameter(p, 'useEEG', false, @islogical); % if you want the function to look for a .eeg file before looking for the .lfp
+addParameter(p, 'saveName', 'ripples', @ischar); % what would you like the variable to be called in the matFile
 
 parse(p, varargin{:});
 
@@ -231,6 +232,7 @@ MAXGIGS = p.Results.MAXGIGS;
 noPrompts = p.Results.noPrompts;
 useSPW = p.Results.useSPW;
 useEEG = p.Results.useEEG;
+saveName = p.Results.saveName;
 
 %%%%%%%%%%%%%%%%%%%%
 %%% INPUT CHECKS %%%
@@ -1409,11 +1411,15 @@ for ep_i = 1:Nepochs
     end
     
     ripples = SWR;
-
+    
     try
-    if saveMat
-        save([Filebase, '.ripples.events.mat'], 'ripples')
-    end
+        if saveMat
+            tempStruct = struct();
+            tempStruct.(saveName) = ripples;
+            save([Filebase, '.' saveName '.events.mat'], '-struct', 'tempStruct');
+        end
+    catch
+        keyboard
     end
 end
 
