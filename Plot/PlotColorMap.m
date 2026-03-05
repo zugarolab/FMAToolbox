@@ -77,7 +77,7 @@ if nargin < 1
 	error('Incorrect number of parameters (type ''help <a href="matlab:help PlotColorMap">PlotColorMap</a>'' for details).');
 end
 if nargin == 1
-	dimm = 1;
+	dimm = ~isnan(data); 
 end
 if isa(dimm,'char')
 	varargin = [dimm,varargin];
