@@ -1,4 +1,4 @@
-function PlotColorMap(data,dimm,varargin)
+function PlotColorMap(data,dimm,opt)
 
 %PlotColorMap - Plot a color map.
 %
@@ -56,164 +56,80 @@ function PlotColorMap(data,dimm,varargin)
 % the Free Software Foundation; either version 3 of the License, or
 % (at your option) any later version.
 
-% Default values
-cutoffs = [];
-hgamma = 1;
-gamma = 1;
-hg = 0;
-threshold = 0.01;
-drawBar = false;
-barProp = {};
-type = 'linear';
-[y,x] = size(data);
-x = 1:x; y = 1:y;
-map = '';
-ydir = 'normal';
-piecewise = true;
-ax = [];
-
-% Check parameters
-if nargin < 1
-	error('Incorrect number of parameters (type ''help <a href="matlab:help PlotColorMap">PlotColorMap</a>'' for details).');
-end
-if nargin == 1
-	dimm = ~isnan(data); 
-end
-if isa(dimm,'char')
-	varargin = [dimm,varargin];
-	dimm = 1;
+arguments
+    data (:,:) double
+    dimm = ~isnan(data)
+    opt.x (:,1) = 1 : size(data,2)
+    opt.y (:,1) = 1 : size(data,1)
+    opt.threshold (1,1) {mustBeNonnegative} = 0.01
+    opt.cutoffs (1,:) = []
+    opt.hgamma (1,1) = NaN
+    opt.gamma (1,1) {mustBeNonnegative} = 1
+    opt.bar string = "off"
+    opt.barProp cell = {}
+    opt.type string {mustBeMember(opt.type,["linear","circular"])} = "linear"
+    opt.map = ''
+    opt.ydir string {mustBeMember(opt.ydir,["normal","reverse"])} = "normal"
+    opt.piecewise {mustBeGeneralLogical} = true
+    opt.ax matlab.graphics.axis.Axes = gca
 end
 
-% Parse parameter list
-for i = 1:2:length(varargin)
-    if ~ischar(varargin{i})
-        error(['Parameter ' num2str(i+2) ' is not a property (type ''help <a href="matlab:help PlotColorMap">PlotColorMap</a>'' for details).']);
-    end
-    switch lower(varargin{i})
-
-        case 'threshold'
-            threshold = varargin{i+1};
-            if ~isdscalar(threshold,'>=0')
-                error('Incorrect value for property ''threshold'' (type ''help <a href="matlab:help PlotColorMap">PlotColorMap</a>'' for details).');
-            end
-  		  case 'x'
-    			  x = varargin{i+1};
-      			if ~isdvector(x)
-      				  error('Incorrect value for property ''x'' (type ''help <a href="matlab:help PlotColorMap">PlotColorMap</a>'' for details).');
-      			end
-  		  case 'y'
-    	  		y = varargin{i+1};
-    		  	if ~isdvector(y)
-    			  	  error('Incorrect value for property ''y'' (type ''help <a href="matlab:help PlotColorMap">PlotColorMap</a>'' for details).');
-    	  		end
-  		  case 'cutoffs'
-    			  cutoffs = varargin{i+1};
-      			if ~isempty(cutoffs) && (~isvector(cutoffs) || numel(cutoffs) ~= 2 || cutoffs(1) > cutoffs(2))
-      				  error('Incorrect value for property ''cutoffs'' (type ''help <a href="matlab:help PlotColorMap">PlotColorMap</a>'' for details).');
-      			end
-  		  case 'hgamma'
-    			  hg = 1;
-      			hgamma = varargin{i+1};
-      			if ~isdscalar(hgamma,'>=0')
-        				error('Incorrect value for property ''hgamma'' (type ''help <a href="matlab:help PlotColorMap">PlotColorMap</a>'' for details).');
-    	  		end
-  		  case 'gamma'
-    			  gamma = varargin{i+1};
-            if ~isdscalar(gamma,'>=0')
-      			  	error('Incorrect value for deprecated property ''gamma'' (type ''help <a href="matlab:help PlotColorMap">PlotColorMap</a>'' for details).');
-            end
-  		  case 'bar'
-      			barLabel = varargin{i+1};
-            drawBar = ~strcmpi(varargin{i+1},'off');
-      			if ~isastring(barLabel)
-    	  		  	error('Incorrect value for property ''bar'' (type ''help <a href="matlab:help PlotColorMap">PlotColorMap</a>'' for details).');
-            end
-        case 'barprop'
-            barProp = varargin{i+1};
-            if ~iscell(barProp)
-    	  		  	error('Incorrect value for property ''barProp'' (type ''help <a href="matlab:help PlotColorMap">PlotColorMap</a>'' for details).');
-            end
-  	  	case 'type'
-  			    type = lower(varargin{i+1});
-            if ~isastring(type,'linear','circular')
-                error('Incorrect value for property ''type'' (type ''help <a href="matlab:help PlotColorMap">PlotColorMap</a>'' for details).');
-            end
-        case 'map'
-            map = lower(varargin{i+1});
-            if ~isText(map,'scalar',true) && ~(isnumeric(map) && size(map,2) == 3)
-                error('Incorrect value for property ''map'' (type ''help <a href="matlab:help PlotColorMap">PlotColorMap</a>'' for details).');
-            end
-    		case 'ydir'
-    	  		ydir = lower(varargin{i+1});
-            if ~isastring(ydir,'normal','reverse')
-    	  		  	error('Incorrect value for property ''ydir'' (type ''help <a href="matlab:help PlotColorMap">PlotColorMap</a>'' for details).');
-            end
-        case 'piecewise'
-    			  piecewise = strcmpi(varargin{i+1},'on');
-            if ~isastring(lower(varargin{i+1}),'on','off')
-      		  		error('Incorrect value for property ''piecewise'' (type ''help <a href="matlab:help PlotColorMap">PlotColorMap</a>'' for details).');
-            end
-        case 'ax'
-            ax = varargin{i+1};
-            if ~isa(ax,'matlab.graphics.axis.Axes')
-                error('Incorrect value for property ''ax'' (type ''help <a href="matlab:help PlotColorMap">PlotColorMap</a>'' for details).');
-            end
-        otherwise
-    		  	error(['Unknown property ''' num2str(varargin{i}) ''' (type ''help <a href="matlab:help PlotColorMap">PlotColorMap</a>'' for details).']);
-  	end
+% Validate parameters
+if ~isempty(opt.cutoffs) && (numel(opt.cutoffs) ~= 2 || opt.cutoffs(1) > opt.cutoffs(2))
+    error('Incorrect value for property ''cutoffs'' (type ''help <a href="matlab:help PlotColorMap">PlotColorMap</a>'' for details).');
 end
-
-data = double(data);
+if ~isText(opt.map,'scalar',true) && ~(isnumeric(opt.map) && size(opt.map,2) == 3)
+    error('Incorrect value for property ''map'' (type ''help <a href="matlab:help PlotColorMap">PlotColorMap</a>'' for details).');
+end
 
 % Special defaults
-x = x(:);
-y = y(:);
-if hg == 0
-    hgamma = 1/gamma;
+if isnan(opt.hgamma)
+    opt.hgamma = 1 / opt.gamma;
+elseif opt.hgamma < 0
+    error('Incorrect value for property ''hgamma'' (type ''help <a href="matlab:help PlotColorMap">PlotColorMap</a>'' for details).');
 end
 default_cutoffs = [min(data,[],'all'),max(data,[],'all')];
-if isempty(cutoffs)
-    cutoffs = [NaN,NaN];
+if isempty(opt.cutoffs)
+    opt.cutoffs = [NaN,NaN];
 end
-cutoffs(isnan(cutoffs)) = default_cutoffs(isnan(cutoffs));
-m = cutoffs(1);
-M = cutoffs(2);
+opt.cutoffs(isnan(opt.cutoffs)) = default_cutoffs(isnan(opt.cutoffs));
+m = opt.cutoffs(1);
+M = opt.cutoffs(2);
 if m == M
     M = m + 1;
 end
 if isscalar(dimm)
-    dimm = dimm*ones(size(data));
+    dimm = dimm * ones(size(data));
 end
-if strcmp(map,'')
-    map = Bright(100,'hgamma',hgamma,'type',type);
-end
-if isempty(ax)
-    ax = gca;
+if strcmp(opt.map,'')
+    opt.map = Bright(100,'hgamma',opt.hgamma,'type',opt.type);
 end
 fig = gcf;
 
 % Plot data
 data = squeeze(data);
 dimm = squeeze(dimm);
-p = imagesc(ax,x,y,data,[m M]);
-set(ax,'color',[0 0 0]);
+p = imagesc(opt.ax,opt.x,opt.y,data,[m M]);
+set(opt.ax,'color',[0 0 0]);
 if any(dimm(:)~=1)
-    alpha(p,1./(1+threshold./(dimm+eps)));
+    alpha(p,1./(1+opt.threshold./(dimm+eps)));
 end
 
 % Set X and Y axes
-set(ax,'ydir',ydir,'tickdir','out','box','off');
-if piecewise && ~isempty(x) && length(x) ~= 1
-    PiecewiseLinearAxis(x,'ax',ax);
+set(opt.ax,'ydir',opt.ydir,'tickdir','out','box','off');
+if opt.piecewise && length(opt.x) > 1
+    PiecewiseLinearAxis(opt.x,'ax',opt.ax);
 end
-if piecewise && ~isempty(y) && length(y) ~= 1
-    PiecewiseLinearAxis(y,'y','ax',ax);
+if opt.piecewise && length(opt.y) > 1
+    PiecewiseLinearAxis(opt.y,'y','ax',opt.ax);
 end
 
 % Color map and bar
-colormap(ax,map);
-if drawBar
-    b = colorbar(ax,'vert','TickDirection','out','FontSize',12,'Color',[0,0,0],'Box','off','LineWidth',1.7,barProp{:});
-        if ~strcmpi(barLabel,'on'), b.Label.String = barLabel; end
-    set(fig,'currentaxes',ax);
+colormap(opt.ax,opt.map);
+if ~strcmpi(opt.bar,'off')
+    b = colorbar(opt.ax,'vert','TickDirection','out','FontSize',opt.ax.FontSize*.8,'Color',[0,0,0],'Box','off','LineWidth',opt.ax.LineWidth,opt.barProp{:});
+    if ~strcmpi(opt.bar,'on')
+        b.Label.String = opt.bar;
+    end
+    set(fig,'currentaxes',opt.ax);
 end
