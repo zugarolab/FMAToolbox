@@ -104,7 +104,7 @@ end
 if strcmp(opt.map,'')
     opt.map = Bright(100,'hgamma',opt.hgamma,'type',opt.type);
 end
-fig = gcf;
+fig = ancestor(opt.ax,'figure');
 
 % Plot data
 data = squeeze(data);
