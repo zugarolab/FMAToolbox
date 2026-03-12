@@ -9,8 +9,8 @@ function [ccg,t,tau,c] = CCG(times,id,varargin)
 %    times          times of all events in seconds (see NOTE below)
 %                   (alternate) - can be {nCells} array of [nSpikes] 
 %                   containing the spiketimes for each cell 
-%    id             ID for each event (e.g. unit ID) from 1 to n. Ignored
-%                   if "times" is a cell (alternate above)
+%    id             ID for each event (e.g. unit ID) from 1 to n (ignored
+%                   if 'times' is a cell array)
 %    <options>      optional list of property-value pairs (see table below)
 %
 %    =========================================================================
@@ -31,10 +31,10 @@ function [ccg,t,tau,c] = CCG(times,id,varargin)
 %     'alpha'       significance level to determine correlated pairs
 %     'totalTime'   total recording duration in s (if different from the
 %                   default = max(times) - min(times))
-%     'Fs'          sampling rate (default = 20000 Hz)
-%     'norm'        normalization of the CCG, 'counts' or 'rate'
-%                   'counts' gives raw event/spike count,
-%                   'rate' returns CCG in units of spks/second (default: counts)
+%     'Fs'          this property is deprecated and has no effect
+%     'norm'        normalization of the CCG, either:
+%                   - 'counts', CCG contains raw event counts (default)
+%                   - 'rate', CCG is in Hz (event / s)
 %    =========================================================================
 %
 %  NOTES
@@ -103,9 +103,8 @@ smooth = 0;
 groups = [];
 mode = 'ccg';
 alpha = 0.05;
-IDrange=[];
+IDrange = [];
 normtype = 'counts';
-Fs = 1/20000;
 
 % Option for spike times to be in {Ncells} array of spiketimes DL2017
 if iscell(times)
@@ -116,10 +115,6 @@ if iscell(times)
     end
     times = cat(1,times{:}); id = cat(1,id{:});
 end
-
-%Sort
-[times,idx] = sort(times);
-id = id(idx);
 
 % Check parameters
 if nargin < 2,
@@ -208,14 +203,14 @@ for i = 1:2:length(varargin),
 end
 
 % Determine binSize/duration
-if isempty(nBins),
-	if isempty(duration),
+if isempty(nBins)
+	if isempty(duration)
 		duration = d;
 	end
 else
-	if isempty(duration),
+	if isempty(duration)
 		duration = nBins*binSize;
-	elseif duration ~= binSize*nBins,
+	elseif duration ~= binSize*nBins
 		error('Incompatible ''duration'' and ''nBins'' parameters (type ''help <a href="matlab:help CCG">CCG</a>'' for details).');
 	end
 end
@@ -224,7 +219,7 @@ tau = [];
 c = [];
 
 % Number of IDs, number of bins, etc.
-if length(id) == 1,
+if isscalar(id)
 	id = ones(length(times),1);
 	nIDs = 1;
 else
@@ -232,42 +227,25 @@ else
 end
 halfBins = round(duration/binSize/2);
 nBins = 2*halfBins+1;
-t = (-halfBins:halfBins)'*binSize;
+t = (-halfBins:halfBins).' * binSize;
 
-if length(times) <= 1,
-	return
-end
-
-% Sort events in time and compute CCGs
-[times,i] = sort(times);
-id = id(i);
-if ~isempty(groups),
-	groups = groups(i);
-end
-
-if length(times) <= 1,
+if length(times) <= 1
     ccg = zeros(nBins,nIDs,nIDs);
     return
 end
 
-try
-    counts = double(CCGEngine(times,id,binSize,halfBins));
-catch
-    problem = true; count = 1;
-    while problem
-        count = count+1;
-        if count>length(times), error('Need to fix CCGEngine'); end
-        try
-            x = ([count:length(times)]); counts = double(CCGEngine(times(x),id(x),binSize,halfBins));
-            problem = false;
-        end
-    end
+% Sort events in time
+[times,idx] = sort(times);
+id = id(idx);
+if ~isempty(groups)
+	groups = groups(idx);
 end
 
-% Reshape the results
-counts = reshape(counts,[nBins nIDs nIDs]);
+% CCG
+counts = double(CCGEngine(times,id,binSize,halfBins));
+counts = reshape(counts,[nBins nIDs nIDs]); % reshape to (time bins, IDs, IDs)
 
-%Rate normalization: counts/numREFspikes/dt to put in units of spikes/s. DL
+% Rate normalization: counts/numREFspikes/dt to put in units of spikes/s. DL
 switch normtype
     case 'rate'
         for gg = 1:nIDs

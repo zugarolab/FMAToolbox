@@ -2,6 +2,7 @@
                            CCGEngine.c  -  description
                              -------------------
     copyright            : (C) 2013-2017 by Michaël Zugaro
+                           (C) 2026 by Pietro Bozzo (boundary correction)
     email                : michael.zugaro@college-de-france.fr
  ***************************************************************************/
 
@@ -65,10 +66,12 @@ void mexFunction(int nlhs,mxArray *plhs[],int nrhs,const mxArray *prhs[])
 			/* Make sure the event falls in the time window */
 			if ( t1 - t2 > maxDt ) break;
 
-			/* Add an event pair in the CCG */
+			/* Add an event pair in the CCG, controlling rounding errors */
 			bin = halfBins + floor(0.5+(t2-t1)/binSize);
+      if ( bin == -1 ) bin = 0;
+      else if ( bin == nBins ) bin = nBins - 1;
+      else if ( bin < 0 || bin >= nBins ) mexErrMsgTxt("Index out of bounds");
 			index = nBins * nIDs * (id1-1) + nBins * (id2-1) + bin;
-			if ( index < 0 || index >= size) mexErrMsgTxt("Index out of bounds");
 			ccg[index]++;
 		}
 
@@ -79,12 +82,14 @@ void mexFunction(int nlhs,mxArray *plhs[],int nrhs,const mxArray *prhs[])
 			t2 = times[next];
 
 			/* Make sure the event falls in the time window */
-			if( t2 - t1 >= maxDt ) break;
+			if ( t2 - t1 >= maxDt ) break;
 
-			/* Add an event pair in the CCG */
+			/* Add an event pair in the CCG, controlling rounding errors */
 			bin = halfBins + floor(0.5+(t2-t1)/binSize);
+      if ( bin == -1 ) bin = 0;
+      else if ( bin == nBins ) bin = nBins - 1;
+      else if ( bin < 0 || bin >= nBins ) mexErrMsgTxt("Index out of bounds");
 			index = nBins * nIDs * (id1-1) + nBins * (id2-1) + bin;
-			if ( index < 0 || index >= size) mexErrMsgTxt("Index out of bounds");
 			ccg[index]++;
 		}
 	}
