@@ -1,4 +1,4 @@
-function [ccg,t,tau,c] = CCG(times,id,varargin)
+function [ccg,t,tau,c] = CCG(times,id,opt)
 
 %CCG - Compute multiple cross- and auto-correlograms, or cross-covariances
 %
@@ -6,9 +6,8 @@ function [ccg,t,tau,c] = CCG(times,id,varargin)
 %
 %    [ccg,t,tau,c] = CCG(times,id,<options>)
 %
-%    times          times of all events in seconds (see NOTE below)
-%                   (alternate) - can be {nCells} array of [nSpikes] 
-%                   containing the spiketimes for each cell 
+%    times          times of all events in seconds (see NOTEs); can also be a
+%                   cell array where each cell contains event times for an ID
 %    id             ID for each event (e.g. unit ID) from 1 to n (ignored
 %                   if 'times' is a cell array)
 %    <options>      optional list of property-value pairs (see table below)
@@ -28,9 +27,10 @@ function [ccg,t,tau,c] = CCG(times,id,varargin)
 %                   be omitted so that the IDs are preserved (2 values for
 %                   normal (ungrouped) CCGs, or 4 values for grouped CCGs)
 %     'mode'        'ccg' or 'ccv' (default = 'ccg')
-%     'alpha'       significance level to determine correlated pairs
-%     'totalTime'   total recording duration in s (if different from the
-%                   default = max(times) - min(times))
+%     'alpha'       significance level to determine correlated pairs (only
+%                   for 'ccv' mode)
+%     'totalTime'   recording duration in s (default = 0 is
+%                   max(times) - min(times), only for 'ccv' mode)
 %     'Fs'          this property is deprecated and has no effect
 %     'norm'        normalization of the CCG, either:
 %                   - 'counts', CCG contains raw event counts (default)
@@ -41,6 +41,10 @@ function [ccg,t,tau,c] = CCG(times,id,varargin)
 %
 %    The size of the cross-correlograms can be supplied either as a duration
 %    (property 'duration') or as an number of bins (property 'nBins').
+%    Parameters 'times', 'id' and 'group' can be obtained using <a href="matlab:help CCGParameters">CCGParameters</a>.
+%    As a special case, when computing the correlograms of spike trains, one
+%    can use the output of <a href="matlab:help GetSpikes">GetSpikes</a> either directly or in combination with
+%    <a href="matlab:help CCGParameters">CCGParameters</a>. See EXAMPLES below.
 %
 %  OUTPUT
 %      ccg          value of cross-correlograms or cross-covariances
@@ -51,14 +55,6 @@ function [ccg,t,tau,c] = CCG(times,id,varargin)
 %      t            time bins
 %      tau          lag times for a each pair (mode 'ccv' only)
 %      c            maximum cross-covariance for a each pair (mode 'ccv' only)
-%
-%
-%  NOTE
-%
-%    Parameters 'times', 'id' and 'group' can be obtained using <a href="matlab:help CCGParameters">CCGParameters</a>.
-%    As a special case, when computing the correlograms of spike trains, one
-%    can use the output of <a href="matlab:help GetSpikes">GetSpikes</a> either directly or in combination with
-%    <a href="matlab:help CCGParameters">CCGParameters</a>. See EXAMPLES below.
 %
 %  EXAMPLES
 %
@@ -88,230 +84,157 @@ function [ccg,t,tau,c] = CCG(times,id,varargin)
 
 % Copyright (C) 2012-2013 by Michaël Zugaro, Marie Goutierre,
 %           (C) 2017 by Dan Levenstein (norm and cell options)
+%           (C) 2026 by Pietro Bozzo (optimization)
 %
 % This program is free software; you can redistribute it and/or modify
 % it under the terms of the GNU General Public License as published by
 % the Free Software Foundation; either version 3 of the License, or
 % (at your option) any later version.
 
-% Default values
-d = 2;
-duration = [];
-binSize = 0.01;
-nBins = [];
-smooth = 0;
-groups = [];
-mode = 'ccg';
-alpha = 0.05;
-IDrange = [];
-normtype = 'counts';
+arguments
+    times
+    id (:,1) {mustBeInteger,mustBePositive}
+    opt.binSize (1,1) {mustBePositive} = 0.01
+    opt.duration {mustBeScalarOrEmpty,mustBePositive} = []
+    opt.nBins {mustBeScalarOrEmpty,mustBeInteger,mustBePositive} = []
+    opt.smooth (1,1) {mustBeNonnegative} = 0
+    opt.groups (:,1) {mustBeMember(opt.groups,[1,2])} = []
+    opt.range (1,:) {mustBeInteger,mustBePositive} = []
+    opt.mode (1,1) string {mustBeMember(opt.mode,["ccg","ccv"])} = "ccg"
+    opt.alpha (1,1) {mustBePositive} = 0.05
+    opt.totalTime (1,1) {mustBeNonnegative} = 0
+    opt.Fs = []
+    opt.norm (1,1) string {mustBeMember(opt.norm,["counts","rate"])} = "counts"
+end
 
-% Option for spike times to be in {Ncells} array of spiketimes DL2017
+% Validate input
 if iscell(times)
-    clear id
-    numcells = length(times);
-    for cc = 1:numcells
-        id{cc}=cc.*ones(size(times{cc}));
-    end
-    times = cat(1,times{:}); id = cat(1,id{:});
+    % convert to double array
+    id = repelem((1:numel(times)).',cellfun(@numel, times),1);
+    times = vertcat(times{:});
 end
-
-% Check parameters
-if nargin < 2,
-  error('Incorrect number of parameters (type ''help <a href="matlab:help CCG">CCG</a>'' for details).');
+if ~isnumeric(times) || ~isvector(times)
+    error('Parameter ''times'' must be a vector or cell (type ''help <a href="matlab:help CCG">CCG</a>'' for details).');
 end
-if ~isdvector(times),
-	error('Parameter ''times'' is not a real-valued vector (type ''help <a href="matlab:help CCG">CCG</a>'' for details).');
+if size(times,1) == 1
+    times = times.';
 end
-if ~isdscalar(id) && ~isdvector(id),
-	error('Parameter ''id'' is not a real-valued scalar or vector (type ''help <a href="matlab:help CCG">CCG</a>'' for details).');
-end
-if ~isdscalar(id) && length(times) ~= length(id),
-	error('Parameters ''times'' and ''id'' have different lengths (type ''help <a href="matlab:help CCG">CCG</a>'' for details).');
-end
-id = id(:);
-times = times(:);
-totalTime = max(times)-min(times);
-
-% Parse parameter list
-for i = 1:2:length(varargin),
-	if ~ischar(varargin{i}),
-		error(['Parameter ' num2str(i+2) ' is not a property (type ''help <a href="matlab:help CCG">CCG</a>'' for details).']);
-	end
-	switch(lower(varargin{i})),
-		case 'binsize',
-			binSize = varargin{i+1};
-			if ~isdscalar(binSize,'>0'),
-				error('Incorrect value for property ''binSize'' (type ''help <a href="matlab:help CCG">CCG</a>'' for details).');
-			end
-		case 'nbins',
-			nBins = varargin{i+1};
-			if ~isiscalar(nBins,'>0'),
-				error('Incorrect value for property ''nBins'' (type ''help <a href="matlab:help CCG">CCG</a>'' for details).');
-			end
-		case 'duration',
-			duration = varargin{i+1};
-			if ~isdscalar(duration,'>0'),
-				error('Incorrect value for property ''duration'' (type ''help <a href="matlab:help CCG">CCG</a>'' for details).');
-			end
-		case 'smooth',
-			smooth = varargin{i+1};
-			if ~isdscalar(smooth,'>=0'),
-				error('Incorrect value for property ''smooth'' (type ''help <a href="matlab:help CCG">CCG</a>'' for details).');
-			end
-		case 'groups',
-			groups = varargin{i+1};
-			if ~isempty(groups) && ~isdvector(groups) && length(times) ~= length(groups)
-				error('Incorrect value for property ''groups'' (type ''help <a href="matlab:help CCG">CCG</a>'' for details).');
-			end
-		case 'alpha',
-			alpha = varargin{i+1};
-			if ~isdscalar(alpha,'>0'),
-				error('Incorrect value for property ''alpha'' (type ''help <a href="matlab:help CCG">CCG</a>'' for details).');
-			end
-		case 'mode',
-			mode = varargin{i+1};
-			if ~isastring(mode,'ccg','ccv'),
-				error('Incorrect value for property ''mode'' (type ''help <a href="matlab:help CCG">CCG</a>'' for details).');
-            end
-        case 'totaltime',
-            totalTime = varargin{i+1};
-            if ~isdscalar(totalTime,'>0'),
-                error('Incorrect value for property ''totaltime'' (type ''help <a href="matlab:help CCG">CCG</a>'' for details).');
-            end
-        case 'range',
-            IDrange = varargin{i+1};
-            if ~isdvector(IDrange),
-                error('Incorrect value for property ''range'' (type ''help <a href="matlab:help CCG">CCG</a>'' for details).');
-            end
-            if ~isempty(groups) && numel(IDrange) ~= 4,
-                error('Incorrect value for property ''range'' (expected four elements). Type ''help <a href="matlab:help CCG">CCG</a>'' for details.')
-            end
-            if isempty(groups) && numel(IDrange) ~= 2,
-                error('Incorrect value for property ''range'' (expected two elements). Type ''help <a href="matlab:help CCG">CCG</a>'' for details.')
-            end
-        case {'norm','normtype'}
-            normtype = varargin{i+1};
-            if ~isastring(normtype,'counts','rate'),
-                error('Incorrect value for property ''normtype'' (type ''help <a href="matlab:help CCG">CCG</a>'' for details).');
-            end
-        case 'fs',
-            % ignore, but prevent error to allow compatibility with CellExplorer
-        otherwise,
-            error(['Unknown property ''' num2str(varargin{i}) ''' (type ''help <a href="matlab:help CCG">CCG</a>'' for details).']);
-	end
-end
-
-% Determine binSize/duration
-if isempty(nBins)
-	if isempty(duration)
-		duration = d;
-	end
+if isscalar(id)
+    id = ones(size(times));
+    nIDs = 1;
 else
-	if isempty(duration)
-		duration = nBins*binSize;
-	elseif duration ~= binSize*nBins
-		error('Incompatible ''duration'' and ''nBins'' parameters (type ''help <a href="matlab:help CCG">CCG</a>'' for details).');
-	end
+    if length(times) ~= length(id)
+        error('Parameters ''times'' and ''id'' have different lengths (type ''help <a href="matlab:help CCG">CCG</a>'' for details).');
+    end
+    nIDs = max(id);
+end
+if ~isempty(opt.groups) && length(times) ~= length(opt.groups)
+    error('Property ''groups'' must have the same length as ''times'' (type ''help <a href="matlab:help CCG">CCG</a>'' for details).');
+end
+if isempty(opt.groups) && ~ismember(numel(opt.range),[0,2])
+    error('Incorrect value for property ''range'' (expected two elements). Type ''help <a href="matlab:help CCG">CCG</a>'' for details.')
+end
+if ~isempty(opt.groups) && ~ismember(numel(opt.range),[0,4])
+    error('Incorrect value for property ''range'' (expected two elements). Type ''help <a href="matlab:help CCG">CCG</a>'' for details.')
 end
 
+% Default values
+if isempty(opt.nBins)
+    if isempty(opt.duration)
+        opt.duration = 2;
+    end
+else
+    if isempty(opt.duration)
+        opt.duration = opt.nBins * opt.binSize;
+    elseif opt.duration ~= opt.binSize * opt.nBins
+        error('Incompatible ''duration'' and ''nBins'' parameters (type ''help <a href="matlab:help CCG">CCG</a>'' for details).');
+    end
+end
+halfBins = round(opt.duration/opt.binSize/2);
+opt.nBins = 2*halfBins + 1;
+t = (-halfBins:halfBins).' * opt.binSize;
 tau = [];
 c = [];
-
-% Number of IDs, number of bins, etc.
-if isscalar(id)
-	id = ones(length(times),1);
-	nIDs = 1;
-else
- 	nIDs = max(id);
-end
-halfBins = round(duration/binSize/2);
-nBins = 2*halfBins+1;
-t = (-halfBins:halfBins).' * binSize;
-
 if length(times) <= 1
-    ccg = zeros(nBins,nIDs,nIDs);
+    ccg = zeros(opt.nBins,nIDs,nIDs);
     return
 end
 
 % Sort events in time
 [times,idx] = sort(times);
 id = id(idx);
-if ~isempty(groups)
-	groups = groups(idx);
+if ~isempty(opt.groups)
+    opt.groups = opt.groups(idx);
+end
+if opt.totalTime == 0
+    opt.totalTime = times(end) - times(1);
 end
 
 % CCG
-counts = double(CCGEngine(times,id,binSize,halfBins));
-counts = reshape(counts,[nBins nIDs nIDs]); % reshape to (time bins, IDs, IDs)
+counts = double(CCGEngine(times,id,opt.binSize,halfBins));
+counts = reshape(counts,[opt.nBins nIDs nIDs]); % reshape to (time bins, IDs, IDs)
 
-% Rate normalization: counts/numREFspikes/dt to put in units of spikes/s. DL
-switch normtype
+% Rate normalization: counts/numREFspikes/dt to convert to Hz
+switch opt.norm
     case 'rate'
         for gg = 1:nIDs
-            numREFspikes = sum(id==gg);%number of reference events for group
-            counts(:,gg,:) = counts(:,gg,:)./numREFspikes./binSize;
+            numREFspikes = sum(id==gg); % number of reference events for group
+            counts(:,gg,:) = counts(:,gg,:)./numREFspikes./opt.binSize;
         end
 end
 
-% Add empty correlograms for IDs within customised range which did not spike
-% As CCGEngine automatically creates empty correlograms for IDs within the
-% range of the id-s in the data, only correlograms for id-s above the
-% maximal id in the data need to be added.
-if numel(IDrange) == 2,
-    nIDs = max(IDrange);
-    extraIDs = (max(id) + 1) : max(IDrange);
-    counts(:,extraIDs,:) = zeros(nBins, numel(extraIDs), max(id));
-    counts(:,:,extraIDs) = zeros(nBins, max(IDrange), numel(extraIDs));
+% Add empty correlograms for IDs in requested range (CCGEngine output aleady considers processes in 1 : nIDs)
+if numel(opt.range) == 2
+    nIDsOld = nIDs;
+    nIDs = max(opt.range);
+    extraIDs = (nIDsOld + 1) : nIDs;
+    counts(:,extraIDs,:) = zeros(opt.nBins, numel(extraIDs), nIDsOld);
+    counts(:,:,extraIDs) = zeros(opt.nBins, nIDs, numel(extraIDs));
 end
 
 % Restrict the results to inter-group CCGs if requested
-if ~isempty(groups),
-    if numel(IDrange) == 4,
-        IDrange = reshape(IDrange,[2 2])'; %making sure the values are arranged [min1 max1; min2 max2] just in case a single-row vector was provided.
-        group1 = unique([id(groups == 1) IDrange(1,:)]); % all the IDs of the neurons that have spiked, including the range provided by the user
-        group2 = unique([id(groups == 2) IDrange(2,:)]);
+if ~isempty(opt.groups)
+    if numel(opt.range) == 4
+        opt.range = reshape(opt.range,[2 2])'; %making sure the values are arranged [min1 max1; min2 max2] just in case a single-row vector was provided.
+        group1 = unique([id(opt.groups == 1) opt.range(1,:)]); % all the IDs of the neurons that have spiked, including the range provided by the user
+        group2 = unique([id(opt.groups == 2) opt.range(2,:)]);
     else
-        group1 = unique([id(groups == 1)]);
-        group2 = unique([id(groups == 2)]);
+        group1 = unique([id(opt.groups == 1)]);
+        group2 = unique([id(opt.groups == 2)]);
     end
     group1 = min(group1) : max(group1); 
-    %The ccg will return output for all the IDs within the range regardless
-    %of whether there were spikes or not
-    %This is in order not to omit any silent IDs and thus keep the original
-    %ID number in the ccg output.
     group2 = min(group2) : max(group2); 
-	nGroup1 = numel(group1);
-	nGroup2 = numel(group2);
-	ccg = zeros(nBins,nGroup1,nGroup2);
-	for i = 1:nGroup1,
-		for j = 1:nGroup2,
-			ccg(:,i,j) = Smooth(flipud(counts(:,group1(i),group2(j))),smooth);
-		end
-	end
+    nGroup1 = numel(group1);
+    nGroup2 = numel(group2);
+    ccg = zeros(opt.nBins,nGroup1,nGroup2);
+    for i = 1:nGroup1
+        for j = 1:nGroup2
+            ccg(:,i,j) = Smooth(flipud(counts(:,group1(i),group2(j))),opt.smooth);
+        end
+    end
 else
-	ccg = zeros(nBins,nIDs,nIDs);
-	% Compute corr(A,B) for each unique unordered pair (A,B)
-	for g1 = 1:nIDs,
-		for g2 = g1:nIDs,
-			ccg(:,g1,g2) = Smooth(flipud(counts(:,g1,g2)),smooth);
+    ccg = zeros(opt.nBins,nIDs,nIDs);
+    % Compute corr(A,B) for each unique unordered pair (A,B)
+	for g1 = 1:nIDs
+		for g2 = g1:nIDs
+			ccg(:,g1,g2) = Smooth(flipud(counts(:,g1,g2)),opt.smooth);
 		end
 	end
 	% corr(B,A) and corr(B,A) symmetric
-	for g1 = 1:nIDs,
-		for g2 = 1:g1-1,
+	for g1 = 1:nIDs
+		for g2 = 1:g1-1
 			ccg(:,g1,g2) = flipud(squeeze(ccg(:,g2,g1)));
 		end
 	end
 end
 
 
-if strcmp(mode,'ccv'),
+if strcmp(opt.mode,'ccv')
 
 	% Determine mean event rate for each ID
 	eventRate = zeros(nIDs,1);
-	for i = 1:nIDs,
-		eventRate(i) = sum(id==i)/totalTime;
+	for i = 1:nIDs
+		eventRate(i) = sum(id==i)/opt.totalTime;
 	end
 
 	% Determine standardized cross-covariances
@@ -322,18 +245,18 @@ if strcmp(mode,'ccv'),
 	nPairs = size(ccg,2)*size(ccg,3);
 	disp(['# pairs: ' int2str(nPairs)]);
 
-	threshold = sqrt(2)*erfinv(1-(alpha/length(t)));
+	threshold = sqrt(2)*erfinv(1-(opt.alpha/length(t)));
 
-	for i = 1:size(ccg,2),
-		for j = 1:size(ccg,3),
+	for i = 1:size(ccg,2)
+		for j = 1:size(ccg,3)
 		
 			% Compute and normalize CCVs from CCGs
-			if ~isempty(groups),
+			if ~isempty(opt.groups)
 				rate = eventRate(group1(i))*eventRate(group2(j));
 			else
 				rate = eventRate(i)*eventRate(j);
 			end
-			ccv(:,i,j) = sqrt((binSize*totalTime)/rate) * (ccg(:,i,j)/(binSize*totalTime)-rate);
+			ccv(:,i,j) = sqrt((opt.binSize*opt.totalTime)/rate) * (ccg(:,i,j)/(opt.binSize*opt.totalTime)-rate);
 
 			% Smooth with a 3-bin boxcar
 			data = ccv(:,i,j);
@@ -357,7 +280,7 @@ if strcmp(mode,'ccv'),
 			% c(i,j) = median(ccv(max(1,maxIndex-3):min(end,maxIndex+3),i,j));
 
 			% Keep only significantly correlated pairs
-			if ~any(abs(ccv(:,i,j))>threshold),
+			if ~any(abs(ccv(:,i,j))>threshold)
 				tau(i,j) = NaN;
 			end
 			
