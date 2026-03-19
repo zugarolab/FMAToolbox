@@ -81,6 +81,11 @@ function varargout = PETH(samples, events, varargin)
 % the Free Software Foundation; either version 3 of the License, or
 % (at your option) any later version.
 
+% validate input
+if size(samples,2) > 2
+    error('Samples must have one or two columns (type ''help <a href="matlab:help PETH">PETH</a>'' for details).')
+end
+
 % default values
 duration = [-1 1];
 nBins = 101;
