@@ -1,4 +1,4 @@
-function [lfp,indices] = GetLFP(channels,varargin)
+function [lfp,indices] = GetLFP(channels,opt)
 
 %GetLFP - Get local field potentials.
 %
@@ -46,74 +46,50 @@ function [lfp,indices] = GetLFP(channels,varargin)
 % the Free Software Foundation; either version 3 of the License, or
 % (at your option) any later version.
 
+arguments
+    channels
+    opt.restrict (:,2) = []
+    opt.intervals (:,2) = [] % retrocompatibility: replaced by 'restrict'
+    opt.select (1,1) string {mustBeMember(opt.select,["id","number"])} = "id"
+    opt.chunkSize (1,1) {mustBeInteger,mustBePositive} = 10000
+end
+
+% 'restrict' has priority over 'intervals'
+if isempty(opt.restrict)
+    opt.restrict = opt.intervals;
+end
+if isempty(opt.restrict)
+    opt.restrict  = [0 Inf];
+end
+
 global DATA;
-if isempty(DATA),
-	error('No session defined (did you forget to call SetCurrentSession? Type ''help <a href="matlab:help Data">Data</a>'' for details).');
+if isempty(DATA)
+    error('No session defined (did you forget to call SetCurrentSession? Type ''help <a href="matlab:help Data">Data</a>'' for details).');
 end
-
-% Default values
-intervals = [0 Inf];
-select = 'id';
-chunkSize = 10000;
-
-if nargin < 1 | mod(length(varargin),2) ~= 0,
-  error('Incorrect number of parameters (type ''help <a href="matlab:help GetLFP">GetLFP</a>'' for details).');
-end
-
-% Parse parameter list
-for i = 1:2:length(varargin),
-	if ~ischar(varargin{i}),
-		error(['Parameter ' num2str(i+1) ' is not a property (type ''help <a href="matlab:help GetLFP">GetLFP</a>'' for details).']);
-	end
-	switch(lower(varargin{i})),
-		case {'intervals','restrict'},
-			intervals = varargin{i+1};
-			if ~isdmatrix(intervals) || size(intervals,2) ~= 2,
-				error(['Incorrect value for property ''' lower(varargin{i}) ''' (type ''help <a href="matlab:help GetLFP">GetLFP</a>'' for details).']);
-			end
-		case 'select',
-		select = lower(varargin{i+1});
-		if ~isastring(select,'id','number'),
-			error('Incorrect value for property ''select'' (type ''help <a href="matlab:help GetLFP">GetLFP</a>'' for details).');
-		end
-		case 'select',
-			select = lower(varargin{i+1});
-			if ~isastring(select,'id','number'),
-				error('Incorrect value for property ''select'' (type ''help <a href="matlab:help GetLFP">GetLFP</a>'' for details).');
-			end
-		case 'chunksize',
-			chunkSize = varargin{i+1};
-			if ~isivector(chunkSize,'>0'),
-				error('Incorrect value for property ''chunkSize'' (type ''help <a href="matlab:help GetLFP">GetLFP</a>'' for details).');
-			end
-		otherwise,
-			error(['Unknown property ''' num2str(varargin{i}) ''' (type ''help <a href="matlab:help GetLFP">GetLFP</a>'' for details).']);
-	end
-end
-
 filename = [DATA.session.path '/' DATA.session.basename '.lfp'];
-if ~exist(filename,'file'),
-	error(['File ''' filename ''' not found.']);
-end
-nChannels = DATA.nChannels;
-if isa(channels,'char') && strcmp(lower(channels),'all'),
-	channels = (1:nChannels)-1;
+if ~exist(filename,'file')
+    error(['File ''' filename ''' not found.']);
 end
 
-if strcmp(select,'id'),
+nChannels = DATA.nChannels;
+if isText(channels,'scalar',true) && strcmpi(channels,'all')
+    channels = (1 : nChannels) - 1;
+end
+if opt.select == "id"
 	channels = channels + 1;
 end
 
-nIntervals = size(intervals,1);
-lfp = [];
-indices = [];
-for i = 1:nIntervals,
-	duration = (intervals(i,2)-intervals(i,1));
-	start = intervals(i,1);
+nIntervals = size(opt.restrict,1);
+lfp = cell(nIntervals);
+indices = cell(nIntervals);
+for i = 1 : nIntervals
+	duration = (opt.restrict(i,2)-opt.restrict(i,1));
+	start = opt.restrict(i,1);
 	% Load data
-	data = LoadBinary(filename,'duration',duration,'frequency',DATA.rates.lfp,'nchannels',nChannels,'start',start,'channels',channels,'chunkSize',chunkSize);
-	t = start:(1/DATA.rates.lfp):(start+(length(data)-1)/DATA.rates.lfp);t=t';
-	lfp = [lfp ; t data];
-	indices = [indices ; i*ones(size(t))];
+	data = LoadBinary(filename,'duration',duration,'frequency',DATA.rates.lfp,'nchannels',nChannels,'start',start,'channels',channels,'chunkSize',opt.chunkSize);
+	t = start : (1/DATA.rates.lfp) : (start+(length(data)-1)/DATA.rates.lfp);
+	lfp{i} = [t.' data];
+	indices{i} = i*ones(size(t));
 end
-
+lfp = vertcat(lfp{:});
+indices = vertcat(indices{:});
