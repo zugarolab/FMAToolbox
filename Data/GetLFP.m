@@ -89,7 +89,7 @@ for i = 1 : nIntervals
 	data = LoadBinary(filename,'duration',duration,'frequency',DATA.rates.lfp,'nchannels',nChannels,'start',start,'channels',channels,'chunkSize',opt.chunkSize);
 	t = start : (1/DATA.rates.lfp) : (start+(length(data)-1)/DATA.rates.lfp);
 	lfp{i} = [t.' data];
-	indices{i} = i*ones(size(t));
+	indices{i} = i*ones(numel(t),1);
 end
 lfp = vertcat(lfp{:});
 indices = vertcat(indices{:});
