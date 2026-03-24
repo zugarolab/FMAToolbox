@@ -153,12 +153,16 @@ circY = size(map.z,1) > 1 && ((size(map.z,2) > 1 && strcmp(type(2),'c')) || strc
 stats.x = NaN;
 stats.y = NaN;
 stats.field = logical(zeros(0,0,0));
-stats.size = 0;
-stats.peak = 0;
-stats.mean = 0;
+stats.size = NaN;
+stats.peak = NaN;
+stats.mean = NaN;
 stats.fieldX = [NaN NaN];
 stats.fieldY = [NaN NaN];
-stats.specificity = 0;
+stats.specificity = NaN;
+stats.bitsPerSpike = NaN;
+stats.bitsPerSecond = NaN;
+stats.sparsity = NaN;
+stats.selectivity = NaN;
 stats.m = nan;
 stats.r = nan;
 stats.mode = nan;
@@ -180,6 +184,17 @@ if T == 0 || lambda == 0,
 	stats.specificity = 0;
 else
 	stats.specificity = sum(sum(p_i.*lambda_i/lambda.*log2(lambda_i/lambda)));
+end
+ 
+% Get a couple of additional information measures
+if T > 0 && sum(map.count(:))>0
+    meanFiringRate = sum(sum(lambda_i.*map.time))./T;
+    logArg = lambda_i./meanFiringRate;
+    logArg(logArg == 0) = 1;
+    stats.bitsPerSpike = sum(sum(p_i.*logArg.*log2(logArg))); % bits per spike.
+    stats.bitsPerSecond = sum(sum(p_i.*lambda_i.*log2(logArg))); % bits per second.
+    stats.sparsity = ((sum(sum(p_i.*lambda_i))).^2)/sum(sum(p_i.*(lambda_i.^2)));
+    stats.selectivity = max(max(lambda_i))./meanFiringRate;
 end
 
 % Determine the field as the connex area around the peak where the value or rate is > threshold*peak
