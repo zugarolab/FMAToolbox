@@ -1,16 +1,17 @@
 function [map,stats] = FiringMap(positions,spikes,varargin)
 
-%FiringMap - Compute firing map (e.g. for a place cell).
+%FiringMap - Compute firing map (e.g. for a place cell, head direction cell, etc.)
 %
 %  Compute firing map (e.g. for a place cell), as well as occupancy and spike
-%  count maps. Optionnally, field statistics can also be computed, including
+%  count maps. Optionally, field statistics can also be computed, including
 %  in-field peak and mean firing rates, firing field size, etc.
 %
 %  USAGE
 %
 %    [map,stats] = FiringMap(positions,spikes,<options>)
 %
-%    positions      position <a href="matlab:help samples">samples</a>
+%    positions      position <a href="matlab:help samples">samples</a> in 
+%                   1D or 2 dimensional data.
 %    spikes         spike timestamps
 %    <options>      optional list of property-value pairs (see table below)
 %
@@ -37,6 +38,8 @@ function [map,stats] = FiringMap(positions,spikes,varargin)
 %                   and ignored (default = 100)
 %     'minPeak'     peaks smaller than this size are considered spurious
 %                   and ignored (default = 1)
+%     'nShuffles'   number of shuffles to compute the p-value for specificity
+%                   (default = 0, no p-value computed)
 %     'verbose'     display processing information (default = 'off')
 %    =========================================================================
 %
@@ -56,7 +59,9 @@ function [map,stats] = FiringMap(positions,spikes,varargin)
 %    stats.field         field (1 = bin in field, 0 = bin not in field)
 %    stats.fieldX        field x boundaries (in bins)
 %    stats.fieldY        field y boundaries (in bins)
-%    stats.specificity   spatial specificity (Skaggs et al., 1993)
+%    stats.specificity   spatial specificity (Skaggs et al., 1993) [bits/spike]
+
+%    stats.p             spatial specificity p-value (computed over shuffles)
 %
 %  NOTE
 %
@@ -66,9 +71,9 @@ function [map,stats] = FiringMap(positions,spikes,varargin)
 %
 %  SEE
 %
-%    See also Map, MapStats, FiringCurve, PlotColorMap.
+%    See also Map, MapStats, PlotColorMap.
 
-% Copyright (C) 2004-2013 by Michaël Zugaro
+% Copyright (C) 2023 Ralitsa Todorova, 2004-2013 by Michaël Zugaro
 %
 % This program is free software; you can redistribute it and/or modify
 % it under the terms of the GNU General Public License as published by
@@ -76,48 +81,66 @@ function [map,stats] = FiringMap(positions,spikes,varargin)
 % (at your option) any later version.
 
 % Check number of parameters
-if nargin < 2
+if nargin < 2,
   error('Incorrect number of parameters (type ''help <a href="matlab:help FiringMap">FiringMap</a>'' for details).');
 end
 
-if size(positions,2) ~= 3
-  warning('Parameter ''positions'' is not a Nx3 matrix - using the first light.');
-  positions = positions(:,1:3);
+nDim = size(positions,2)-1;
+if ~ismember(nDim,[1 2])
+  error('Parameter ''positions'' is not a Nx2 or Nx3 matrix (type ''help <a href="matlab:help FiringMap">FiringMap</a>'' for details).');
 end
 
+nShuffles = 0;
 im = 1;argsm = {};
 is = 1;argss = {};
 % Parse parameter list
 for i = 1:2:length(varargin)
-	if ~ischar(varargin{i})
-		error(['Parameter ' num2str(i+2) ' is not a property (type ''help <a href="matlab:help FiringMap">FiringMap</a>'' for details).']);
-	end
-	switch(lower(varargin{i}))
-		case 'type'
-			argss{is} = 'type';
-			argss{is+1} = varargin{i+1}(1:2);
-			is = is+2;
-			argsm{im} = 'type';
-			argsm{im+1} = [varargin{i+1}(1:2) 'l'];
-			im = im+2;
-		case {'threshold','minsize','minpeak','verbose','debug','localmax'},
-			argss{is} = varargin{i};
-			argss{is+1} = varargin{i+1};
-			is = is+2;
-        otherwise
-			argsm{im} = varargin{i};
-			argsm{im+1} = varargin{i+1};
-			im = im+2;
-  end
+    if ~ischar(varargin{i})
+        error(['Parameter ' num2str(i+2) ' is not a property (type ''help <a href="matlab:help FiringMap">FiringMap</a>'' for details).']);
+    end
+    switch(lower(varargin{i}))
+        case {'nshuffles'} % argument for this function only
+            nShuffles = varargin{i+1};
+        case {'mintime'} % arguments to be given to both Map and MapStats
+            argss{is} = varargin{i};
+            argss{is+1} = varargin{i+1};
+            is = is+2;
+            argsm{im} = varargin{i};
+            argsm{im+1} = varargin{i+1};
+            im = im+2;
+        case 'type' % special case to be given to both Map and MapStats
+            argss{is} = 'type';
+            argss{is+1} = varargin{i+1}(1:nDim);
+            is = is+2;
+            argsm{im} = 'type';
+            argsm{im+1} = [varargin{i+1}(1:nDim) 'l'];
+            im = im+2;
+        case {'threshold','minsize','minpeak','verbose','debug','localmax'} % arguments to be given to MapStats only
+            argss{is} = varargin{i};
+            argss{is+1} = varargin{i+1};
+            is = is+2;
+        otherwise % arguments to be given to Map only
+            argsm{im} = varargin{i};
+            argsm{im+1} = varargin{i+1};
+            im = im+2;
+    end
 end
 
-if size(spikes,2)>1
-    spikes = spikes(:,1); 
-    warning('''spikes'' is a matrix, but it is expected to be a vector of timestamps. Ignoring the second column...');
-end
 map = Map(positions,spikes,argsm{:});
 if nargout == 2
-	stats = MapStats(map,argss{:});
+    stats = MapStats(map,argss{:});
+    if nShuffles>0
+        maxTime = max(positions(:,1)); specificity = nan(nShuffles,1);
+        for i=1:nShuffles
+            shifted = sortrows([rem(positions(:,1)+rand(1)*maxTime,maxTime) positions(:,2:end)]);
+            shuffled = Map(shifted,spikes,argsm{:});
+            s = MapStats(shuffled,argss{:});
+            specificity(i) = s.specificity;
+        end
+        stats.p = 1-sum(specificity<stats.specificity)./sum(~isnan(specificity));
+    else
+        stats.p = nan;
+    end
 end
 map.rate = map.z;
 map = rmfield(map,'z');
