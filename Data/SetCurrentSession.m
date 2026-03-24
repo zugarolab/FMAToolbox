@@ -1,4 +1,4 @@
-function SetCurrentSession(varargin)
+function SetCurrentSession(filename,opt)
 
 %SetCurrentSession - Load all data for a given recording session.
 %
@@ -40,48 +40,14 @@ function SetCurrentSession(varargin)
 % the Free Software Foundation; either version 3 of the License, or
 % (at your option) any later version.
 
-% Default values
-spikes = 'on';
-verbose = true;
-filename = '';
-
-% Filename?
-if nargin ~= 0
-	if ~isastring(varargin{1},'spikes','verbose')
-		filename = varargin{1};
-        if isstring(filename)
-            filename = char(filename);
-        end
-		varargin = varargin(2:end);
-	end
+arguments
+    filename (1,:) char = ''
+    opt.spikes {mustBeGeneralLogical} = true
+    opt.verbose {mustBeGeneralLogical} = true
 end
 
-% Check number of parameters
-if mod(length(varargin),2) ~= 0
-    error('Incorrect number of parameters (type ''help <a href="matlab:help SetCurrentSession">SetCurrentSession</a>'' for details).');
-end
-
-% Parse parameter list
-for i = 1:2:length(varargin)
-	if ~ischar(varargin{i})
-		error(['Parameter ' num2str(i+2) ' is not a property (type ''help <a href="matlab:help SetCurrentSession">SetCurrentSession</a>'' for details).']);
-	end
-	switch lower(varargin{i})
-		case 'verbose'
-			verbose = lower(varargin{i+1});
-            if ~isastring(verbose,'on','off')
-				error('Incorrect value for property ''verbose'' (type ''help <a href="matlab:help SetCurrentSession">SetCurrentSession</a>'' for details).');
-            end
-            verbose = isastring(verbose,'on');
-		case 'spikes'
-			spikes = lower(varargin{i+1});
-			if ~isastring(spikes,'on','off')
-				error('Incorrect value for property ''spikes'' (type ''help <a href="matlab:help SetCurrentSession">SetCurrentSession</a>'' for details).');
-			end
-        otherwise
-			error(['Unknown property ''' num2str(varargin{i}) ''' (type ''help <a href="matlab:help SetCurrentSession">SetCurrentSession</a>'' for details).']);
-	end
-end
+opt.spikes = GeneralLogical(opt.spikes);
+opt.verbose = GeneralLogical(opt.verbose);
 
 global DATA;
 separator = filesep;
@@ -138,19 +104,19 @@ else
 	end
 end
 
-verbose && fprintf(1,['Loading session files for ' basename '\n']);
+opt.verbose && fprintf(1,['Loading session files for ' basename '\n']);
 
 % File already loaded?
 if strcmp(basename,DATA.session.basename) && strcmp(basepath,DATA.session.basepath) && ~strcmp(filename,'same')
 	disp('... session files already loaded, skipping - type SetCurrentSession(''same'') to force reload');
-	verbose && fprintf(1,'Done\n');
+	opt.verbose && fprintf(1,'Done\n');
 	return
 end
 
 % Parameter file
 session_file = [basepath separator basename '.session.mat']; % CellExplorer session.mat file
 if isfile(session_file)
-    verbose && fprintf(1,['... detected session file ''' basename '.session.mat''\n']);
+    opt.verbose && fprintf(1,['... detected session file ''' basename '.session.mat''\n']);
     load(session_file,'session')
     DATA.session.path = basepath;
     DATA.session.name = basename;
@@ -168,7 +134,7 @@ if isfile(session_file)
 	disp('... warning: missing video parameters (set to zero)');
 else
     DATA = LoadParameters([basepath separator basename '.xml']);
-    verbose && fprintf(1,['... loaded parameter file ''' basename '.xml''\n']);
+    opt.verbose && fprintf(1,['... loaded parameter file ''' basename '.xml''\n']);
 end
 
 % Event file(s)
@@ -176,7 +142,7 @@ DATA.events.time = [];
 DATA.events.description = {};
 behavior_file = [basepath separator basename '.animal.behavior.mat']; % CellExplorer file
 if isfile(behavior_file)
-    verbose && fprintf(1,['... detected event file ''' basename '.animal.behavior.mat''\n']);
+    opt.verbose && fprintf(1,['... detected event file ''' basename '.animal.behavior.mat''\n']);
     try
         load(behavior_file,'behavior')
         event_times = cellfun(@(x) [x.startTime;x.stopTime],behavior.epochs.sessions,UniformOutput=false); % CONFLICT: SOMETIMES struct
@@ -205,37 +171,37 @@ if ~isempty(eventFiles)
         if ~isempty(events.time)
 	        DATA.events.time = [DATA.events.time;events.time];
 		    DATA.events.description = [DATA.events.description;events.description];
-	        verbose && fprintf(1,['... loaded event file ''' eventFiles(i).name '''\n']);
+	        opt.verbose && fprintf(1,['... loaded event file ''' eventFiles(i).name '''\n']);
         end
 	end
 	[DATA.events.time,ind] = sortrows(DATA.events.time);
     DATA.events.description = DATA.events.description(ind);
 else
-    verbose && fprintf(1,'... (no .evt file found)\n');
+    opt.verbose && fprintf(1,'... (no .evt file found)\n');
 end
 
 % Position file
 DATA.positions = [];
 if exist([basepath separator basename '.pos'],'file')
 	DATA.positions = LoadPositions([basepath separator basename '.pos'],DATA.rates.video);
-	if verbose, disp(['... loaded position file ''' basename '.pos''']); end
+	if opt.verbose, disp(['... loaded position file ''' basename '.pos''']); end
 elseif exist([basepath separator basename '.whl'],'file')
 	DATA.positions = LoadPositions([basepath separator basename '.whl'],DATA.rates.video);
-	if verbose, disp(['... loaded position file ''' basename '.whl''']); end
+	if opt.verbose, disp(['... loaded position file ''' basename '.whl''']); end
 elseif exist([basepath separator basename '.mqa'],'file')
 	DATA.positions = LoadPositions([basepath separator basename '.mqa'],DATA.rates.video);
-	if verbose, disp(['... loaded position file ''' basename '.mqa''']); end
+	if opt.verbose, disp(['... loaded position file ''' basename '.mqa''']); end
 else
-	verbose && fprintf(1,'... (no position file found)\n');
+	opt.verbose && fprintf(1,'... (no position file found)\n');
 end
 
 % Spike files
-if strcmp(spikes,'on')
+if opt.spikes
     DATA.spikes = [];
     filename = [basepath separator basename '.cell_metrics.cellinfo.mat'];
     load_clu = true;
     if isfile(filename)
-        verbose && fprintf(1,['... detected spike file ''' basename '.cell_metrics.cellinfo.mat''\n']);
+        opt.verbose && fprintf(1,['... detected spike file ''' basename '.cell_metrics.cellinfo.mat''\n']);
         try
             load(filename,'cell_metrics')
             spike_times = vertcat(cell_metrics.spikes.times{:});
@@ -257,9 +223,9 @@ if strcmp(spikes,'on')
             if exist(filename,'file')
                 try
                 	DATA.spikes = [DATA.spikes;LoadSpikeTimes(filename,DATA.rates.wideband)];
-            		verbose && fprintf(1,['... loaded spike file ''' basename '.clu.' int2str(i) '''\n']);
+            		opt.verbose && fprintf(1,['... loaded spike file ''' basename '.clu.' int2str(i) '''\n']);
                 catch ME
-                    if verbose
+                    if opt.verbose
                         % differentiate error message in case .res file is missing
                         if ME.identifier == "LoadSpikeTimes:MissingRes"
                             disp("... (could not load spike file '" + basename + ".res." + int2str(i) + "')");
@@ -273,13 +239,13 @@ if strcmp(spikes,'on')
             end
         end
     end
-	if isempty(DATA.spikes) && verbose, disp('... (no spike file found)'); end
+	if isempty(DATA.spikes) && opt.verbose, disp('... (no spike file found)'); end
 else
-	verbose && fprintf(1,'... (skipping spike files)\n');
+	opt.verbose && fprintf(1,'... (skipping spike files)\n');
 end
 
 % This is updated only once the files have been properly loaded
 DATA.session.basename = basename;
 DATA.session.basepath = basepath;
 
-verbose && fprintf(1,'Done\n');
+opt.verbose && fprintf(1,'Done\n');
