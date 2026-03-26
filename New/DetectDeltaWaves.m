@@ -32,6 +32,7 @@ function deltaWaves = DetectDeltaWaves(channel,spikes,doSave,opt)
 %                   to be a session folder)
 %     'fast'        if 'on', 'spikes' is assumed to be time sorted, increasing
 %                   speed (defaul: 'off', ignored if 'spikes' is empty)
+%     'check'       number of randomly chosen examples to display (default: 0)
 %    =========================================================================
 %
 %  OUTPUT
@@ -65,8 +66,9 @@ arguments
     channel
     spikes = []
     doSave = true;
-    opt.session (1,1) string = "";
-    opt.fast = 'off';
+    opt.session (1,1) string = ""
+    opt.fast {mustBeGeneralLogical} = 'off'
+    opt.check (1,1) {mustBeInteger,mustBeNonnegative} = 0
 end
 
 % default values
@@ -115,6 +117,32 @@ deltaWaves.detectorName = ['channel ' num2str(channel) ' (+1), CleanLFP, FindDel
 deltaWaves.troughValue = deltas(:,6);
 deltaWaves.badIntervals = badIntervals;
 
+% save
 if doSave
     save(fullfile(basepath,basename+'.deltaWaves.events.mat'),'deltaWaves');
+end
+
+% see examples
+if opt.check
+    % choose random examples
+    idx = randperm(numel(deltaWaves.peaks),opt.check);
+    intervals = deltaWaves.peaks(idx) + [-.5,.5];
+    i = 1;
+    figure
+    for i = 1 : opt.check
+        clf, hold on
+        title(sprintf('%s Example %d / %d - l click: next, r click: stop',replace(basename,'_','\_'),i,opt.check));
+        xlabel('time (s)'),
+        ylabel('LFP')
+        PlotXY(Restrict(lfp,intervals(i,:)))
+        xline(deltaWaves.timestamps(idx(i),1),'Color','k','DisplayName','Start');
+        xline(deltaWaves.peaks(idx(i)),'Color','g','DisplayName','Peak');
+        xline(deltaWaves.timestamps(idx(i),2),'Color','r','DisplayName','Stop');
+        xlim(intervals(i,:))
+        [~,~,button] = ginput(1);
+        if button == 3 % right click
+            break
+        end
+    end
+
 end
