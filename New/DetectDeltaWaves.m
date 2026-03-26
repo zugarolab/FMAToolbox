@@ -1,4 +1,4 @@
-function deltaWaves = DetectDeltaWaves(channel,spikes,save)
+function deltaWaves = DetectDeltaWaves(channel,spikes,doSave,opt)
 
 %DetectDeltaWaves - Detect cortical delta waves from LFP and refine selection using local spiking activity.
 %
@@ -22,6 +22,17 @@ function deltaWaves = DetectDeltaWaves(channel,spikes,save)
 %                   delta waves.
 %    save           optional boolean (default = true). If true, results are
 %                   saved to disk as a .deltaWaves.events.mat file.
+%    <options>      optional list of property-value pairs (see table below)
+%
+%    =========================================================================
+%     Properties    Values
+%    -------------------------------------------------------------------------
+%     'session'     path to session .xml file, delta waves file will be saved
+%                   in its session folder (default: current location, assumed
+%                   to be a session folder)
+%     'fast'        if 'on', 'spikes' is assumed to be time sorted, increasing
+%                   speed (defaul: 'off', ignored if 'spikes' is empty)
+%    =========================================================================
 %
 %  OUTPUT
 %
@@ -43,35 +54,67 @@ function deltaWaves = DetectDeltaWaves(channel,spikes,save)
 %
 %    See also GetLFP, CleanLFP, FindDeltaWaves, PETH.
 
-basepath = pwd;
-[~,basename] = fileparts(basepath);
-if ~exist('save','var'), save = true; end
+% Copyright (C) 2017-2022 by Ralitsa Todorova
+%
+% This program is free software; you can redistribute it and/or modify
+% it under the terms of the GNU General Public License as published by
+% the Free Software Foundation; either version 3 of the License, or
+% (at your option) any later version.
 
-lfp = GetLFP(channel);
-[clean,~,badIntervals] = CleanLFP(lfp,'thresholds',[6 Inf],'manual',true);
-deltas0 = FindDeltaWaves(clean);
-
-threshold = 4.5;
-if exist('spikes','var') && ~isempty(spikes)
-    nQuantiles = 100; durations = [-1 1]; nBins = 201; smooth = [0 1];
-    figure;
-    strength = deltas0(:,5)-deltas0(:,6); 
-    [h,ht] = PETH(spikes(:,1),deltas0(:,2),'durations',durations,'nBins',nBins);
-    
-    clf;
-    p = mean(strength<threshold);
-    PlotColorMap(Smooth(Shrink(sortby(h,strength),floor(size(strength,1)/nQuantiles),1),smooth),'x',ht);
-    PlotHVLines(ceil(p*nQuantiles)+0.5,'h','w--');
-    disp('Change the threshold manually');
-    
-    keyboard;
+arguments
+    channel
+    spikes = []
+    doSave = true;
+    opt.session (1,1) string = "";
+    opt.fast = 'off';
 end
 
-deltas = deltas0(deltas0(:,5)-deltas0(:,6)>threshold,:); % these thresholds should be manually refined for each session
-deltaWaves.timestamps = deltas(:,[1 3]); deltaWaves.peaks = deltas(:,2);  
+% default values
+if opt.session == ""
+    basepath = pwd;
+    [~,basename] = fileparts(basepath);
+else
+    [basepath,basename] = fileparts(opt.session);
+end
+
+lfp = GetLFP(channel);
+% remove artifacts
+[clean,~,badIntervals] = CleanLFP(lfp,'thresholds',[6 Inf],'manual',true);
+% putative delta waves
+deltas0 = FindDeltaWaves(clean);
+
+strength = deltas0(:,5) - deltas0(:,6);
+threshold = 4.5;
+if ~isempty(spikes)
+    % peth parameters
+    durations = [-1 1];
+    nBins = 201;
+    smooth = [0 1];
+    nQuantiles = 100;
+
+    figure;
+    if any(diff(deltas0(:,2))<= 0), disp("Unexpected time ordering of putative deltas waves, option 'fast' should not be used"), end
+    [h,ht] = PETH(spikes(:,1),deltas0(:,2),'durations',durations,'nBins',nBins,'fast',opt.fast); % MUA vs Delta peak time peth
+    clf;
+
+    PlotColorMap(Smooth(Shrink(sortby(h,strength),floor(size(strength,1)/nQuantiles),1),smooth),'x',ht);
+    plotThreshold = @(x) PlotHVLines(ceil(mean(strength<x)*nQuantiles)+0.5,'h','w--'); % utility to see new thresholds
+    plotThreshold(threshold)
+    % give control to user
+    fprintf(1,'Change "threshold" manually, then type:\n  "plotThreshold(threshold)" to visualize it,\n  "dbcont" to continue.\n');
+    keyboard
+
+end
+
+% this threshold should be manually refined for each session
+deltas = deltas0(strength>threshold,:);
+deltaWaves.timestamps = deltas(:,[1 3]);
+deltaWaves.peaks = deltas(:,2);  
 deltaWaves.peakNormedPower = deltas(:,5); 
-deltaWaves.detectorName = ['channel ' num2str(channel) '(+1), CleanLFP, FindDeltaWaves, peak-trough> ' num2str(threshold)];
-deltaWaves.troughValue = deltas(:,6); deltaWaves.badIntervals = badIntervals;
+deltaWaves.detectorName = ['channel ' num2str(channel) ' (+1), CleanLFP, FindDeltaWaves, peak-trough > ' num2str(threshold)];
+deltaWaves.troughValue = deltas(:,6);
+deltaWaves.badIntervals = badIntervals;
 
-save(fullfile(basepath,[basename '.deltaWaves.events.mat']),'deltaWaves');
-
+if doSave
+    save(fullfile(basepath,basename+'.deltaWaves.events.mat'),'deltaWaves');
+end
