@@ -21,9 +21,8 @@ function spindles = FindSpindles(filtered,varargin)
 %
 %  OUTPUT
 %
-%    spindles       for each spindle, start, peak and stop times, and z-scored
-%                   peak amplitude, in a Nx4 matrix [start peak_t end peak_z]
-%
+%    spindles       each row is [start time, peak time, end time, z-scored
+%                   peak amplitude, frequency]
 
 % Copyright (C) 2012-2016 Michaël Zugaro, 2012-2015 Nicolas Maingret, 2016 Ralitsa Todorova
 %
@@ -170,6 +169,7 @@ peak_t(bad) = [];
 spindles = [start peak_t stop peak_z];
 spindles = unique(spindles,'rows');
 
+% Append spindle frequency
 [~,~,unwrappedStart] = Phase(filtered,spindles(:,1));
 [~,~,unwrappedStop] = Phase(filtered,spindles(:,3));
 frequency = ((unwrappedStop(:,end)-unwrappedStart(:,end))/(2*pi))./diff(spindles(:,[1 3]),[],2);
