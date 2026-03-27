@@ -268,7 +268,7 @@ end
 % Read in xml of file parameters
 if exist([Filebase, '.xml'], 'file')
     fprintf(1, 'Loading XML file...\n');
-    par = LoadXml([Filebase, '.xml']);
+    par = LoadXml([Filebase, '.xml']); % LoadXml isn't robust wrt spaces inside attributes, consider using FMAT's LoadParameters PB
     % pull parameters from .xml file
     SR = par.lfpSampleRate; % lfp sampling rate
     nChan = par.nChannels; % number of channels in the recording
@@ -1423,6 +1423,8 @@ for ep_i = 1:Nepochs
     end
 end
 
+end
+
 
 % ------------------------------- Helper functions -------------------------------
 
@@ -1468,6 +1470,9 @@ gwin = gwin / sum(gwin);
 % 19-Jul-02 ES
 % 27-jan-03 zero phase lag
 
+end
+
+
 function Y = firfilt(x, W)
 
 if all(size(W) >= 2), error('window must be a vector'), end
@@ -1483,6 +1488,7 @@ Y = filter(W, 1, [flipud(x(1:C, :)); x; flipud(x(end-C+1:end, :))]);
 clear x
 Y = Y(1+C+D:end-C+D, :);
 
+end
 
 
 function logAnalysisFile(AnalysisFileName, writePath)
@@ -1607,6 +1613,8 @@ end
 % Close all files
 fclose(fid1);
 fclose(fid2);
+
+end
 
 
 function Y = FiltFiltM(b, a, X, Dim)
@@ -1826,8 +1834,8 @@ if doPermute
    Y = ipermute(Y, perm);
 end
 
+end
 
-% return;
 
 function filtered = bz_Filter(samples,varargin)
 
@@ -2105,6 +2113,8 @@ else %or if you just want filter a basic timeseries
     end
 end
 
+end
+
 
 function basename = basenameFromBasepath(basepath)
 % basenameFromBasepath-gets basename from a basepath input to a function.  Uses name of the last
@@ -2123,8 +2133,7 @@ function basename = basenameFromBasepath(basepath)
 %
 % Brendon Watson, 2017
 
-
-if strcmp(basepath(end),filesep);
+if strcmp(basepath(end),filesep)
     basepath = basepath(1:end-1);
 end
 % if there are dots in the filename take that last folder
@@ -2135,6 +2144,7 @@ if contains(basepath,'.')
 end
 [~,basename] = fileparts(basepath);
 
+end
 
 
 function z = xmltools( arg, out_file, varargin)
@@ -2267,6 +2277,8 @@ if ~isstr(arg)
   
   %>*
 
+end
+
 
 %%** Fonctions internes
 
@@ -2363,6 +2375,7 @@ while ~eot & ~isempty(udeblank(deblank(str)))
 	new_tag = new_tag(1:end-1);
       end
     else
+        f_beg = f_beg(1);
       new_attribs = new_tag(f_beg+1:end);
       if eot
 	new_attribs = new_attribs(1:end-1);
@@ -2421,6 +2434,9 @@ while ~eot & ~isempty(udeblank(deblank(str)))
 end
 %>
 
+end
+
+
 %< Parse attribs
 function z =  parse_attribs( a)
 if isempty(a)
@@ -2452,6 +2468,7 @@ for i=1:length(b)
   end
 end
 %>
+end
 
 
 %<* Ecriture d'une structure xml
@@ -2539,10 +2556,11 @@ if ~closed_tag
 end
 %>
 %>*
+end
 
 
 %<* get childs with a specific tag name
-function z = get_childs(z, next, tag_name);
+function z = get_childs(z, next, tag_name)
 u = getfield(z, next);
 zo = [];
 for i=1:length(u)
@@ -2564,6 +2582,7 @@ if ~isstruct( zo)
   error('XMLTOOLS:GET-TEG', 'problem in finding tag <%s> under one <%s>', tag_name, tn);
 end
 z = [ zo.anext ];
+end
 %>*
 
 
@@ -2574,11 +2593,14 @@ s = s(end:-1:1);
 if length(s)==0
   s = '';
 end
+end
 %>
+
 
 %< emptystruct
 function z = emptystruct(next)
 z = struct( 'tag', [], 'value', [], 'attribs', [], next, []);
+end
 %>
 
 %< Tokens
@@ -2606,6 +2628,8 @@ end
 % if length(l)==3 & strcmp(l{2},'=')
 %     keyboard
 % end
+end
+
 
 function [xml, rxml] = LoadXml(fbasename,varargin)
 
@@ -2698,12 +2722,11 @@ for i=1:length(rxml.child)
                 end
             end
     end
-
-
+end
 end
 
-function derivative = bz_Diff(samples,timestamps,varargin)
 
+function derivative = bz_Diff(samples,timestamps,varargin)
 %Diff - Differentiate.
 %
 %  USAGE
@@ -2792,4 +2815,6 @@ for i = 1:size(samples,2)
 	d0 = diff(samples(:,i))./dt;
 	d1 = interp1(t_diff,d0,t(2:end-1,1));
 	derivative(:,i) = [d0(1);d1;d0(end)];
+end
+
 end
