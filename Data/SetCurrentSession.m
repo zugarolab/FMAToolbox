@@ -54,63 +54,63 @@ separator = filesep;
 
 % Initialization
 if isempty(DATA) || ~isfield(DATA,'session') || ~isfield(DATA.session,'basepath') || ~isfield(DATA.session,'basename')
-	format long g;
-	DATA.session.basename = '';
-	DATA.session.path = '';
-	DATA.spikeGroups.nGroups = 0;
-	DATA.spikeGroups.nSamples = [];
-	DATA.spikeGroups.peakSamples = [];
-	DATA.spikeGroups.groups = {};
-	DATA.nChannels = [];
-	DATA.nBits = [];
-	DATA.rates.lfp = [];
-	DATA.rates.wideband = [];
-	DATA.rates.video = [];
-	DATA.maxX = [];
-	DATA.maxY = [];
-	DATA.events.time = [];
-	DATA.events.description = {};
-	DATA.positions = [];
-	DATA.spikes = [];
-	% Default settings
-	GlobalSettings;
+    format long g;
+    DATA.session.basename = '';
+    DATA.session.path = '';
+    DATA.spikeGroups.nGroups = 0;
+    DATA.spikeGroups.nSamples = [];
+    DATA.spikeGroups.peakSamples = [];
+    DATA.spikeGroups.groups = {};
+    DATA.nChannels = [];
+    DATA.nBits = [];
+    DATA.rates.lfp = [];
+    DATA.rates.wideband = [];
+    DATA.rates.video = [];
+    DATA.maxX = [];
+    DATA.maxY = [];
+    DATA.events.time = [];
+    DATA.events.description = {};
+    DATA.positions = [];
+    DATA.spikes = [];
+    % Default settings
+    GlobalSettings;
 end
 
 if isempty(filename) || (strcmp(filename,'same') && isempty(DATA.session.basename))
-	% Interactive mode
-	[filename,basepath] = uigetfile('*.xml','Please select a parameter file for this session');
-	if filename == 0, return; end
-	filename = [basepath filename];
+    % Interactive mode
+    [filename,basepath] = uigetfile('*.xml','Please select a parameter file for this session');
+    if filename == 0, return; end
+    filename = [basepath filename];
 end
 
 if strcmp(filename,'same')
-	% Force reload
-	basepath = DATA.session.basepath;
-	basename = DATA.session.basename;
+    % Force reload
+    basepath = DATA.session.basepath;
+    basename = DATA.session.basename;
 else
-	% Parse file name
-	[basepath,basename] = fileparts(filename);
-	if isempty(basepath)
+    % Parse file name
+    [basepath,basename] = fileparts(filename);
+    if isempty(basepath)
+            basepath = pwd;
+  	else
+        if ~isfolder(basepath)
+            error(['Directory ''' basepath ''' does not exist.']);
+        end
+        % Clean basepath (e.g., simplify ../ or ./ substrings) and make it absolute
+        here = pwd;
+        cd(basepath);
         basepath = pwd;
-	else
-		if ~isfolder(basepath)
-			error(['Directory ''' basepath ''' does not exist.']);
-		end
-		% Clean basepath (e.g., simplify ../ or ./ substrings) and make it absolute
-		here = pwd;
-		cd(basepath);
-		basepath = pwd;
-		cd(here);
-	end
+        cd(here);
+    end
 end
 
 opt.verbose && fprintf(1,['Loading session files for ' basename '\n']);
 
 % File already loaded?
-if strcmp(basename,DATA.session.basename) && strcmp(basepath,DATA.session.basepath) && ~strcmp(filename,'same')
-	disp('... session files already loaded, skipping - type SetCurrentSession(''same'') to force reload');
-	opt.verbose && fprintf(1,'Done\n');
-	return
+if strcmp(basename,DATA.session.basename) && strcmp(basepath,DATA.session.basepath) && ~strcmp(filename,'same') && (isfield(DATA,'spikes') || ~opt.spikes)
+    disp('... session files already loaded, skipping - type SetCurrentSession(''same'') to force reload');
+    opt.verbose && fprintf(1,'Done\n');
+    return
 end
 
 % Parameter file
