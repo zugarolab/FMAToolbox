@@ -27,6 +27,7 @@ function deltaWaves = DetectDeltaWaves(channel,spikes,doSave,opt)
 %    =========================================================================
 %     Properties    Values
 %    -------------------------------------------------------------------------
+%     'restrict'    intervals (s) to restrict analysis to
 %     'session'     path to session .xml file, delta waves file will be saved
 %                   in its session folder (default: current location, assumed
 %                   to be a session folder)
@@ -65,11 +66,14 @@ function deltaWaves = DetectDeltaWaves(channel,spikes,doSave,opt)
 arguments
     channel
     spikes = []
-    doSave = true;
+    doSave {mustBeGeneralLogical} = true
+    opt.restrict (:,2) {mustBeNumeric} = []
     opt.session (1,1) string = ""
     opt.fast {mustBeGeneralLogical} = 'off'
     opt.check (1,1) {mustBeInteger,mustBeNonnegative} = 0
 end
+
+doSave = GeneralLogical(doSave);
 
 % default values
 if opt.session == ""
@@ -79,7 +83,7 @@ else
     [basepath,basename] = fileparts(opt.session);
 end
 
-lfp = GetLFP(channel);
+lfp = GetLFP(channel,'restrict',opt.restrict);
 % remove artifacts
 [clean,~,badIntervals] = CleanLFP(lfp,'thresholds',[6 Inf],'manual',true);
 % putative delta waves
@@ -100,7 +104,7 @@ if ~isempty(spikes)
     clf;
 
     PlotColorMap(Smooth(Shrink(sortby(h,strength),floor(size(strength,1)/nQuantiles),1),smooth),'x',ht);
-    plotThreshold = @(x) PlotHVLines(ceil(mean(strength<x)*nQuantiles)+0.5,'h','w--'); % utility to see new thresholds
+    plotThreshold = @(x) yline(ceil(mean(strength<x)*nQuantiles)+0.5,'k--'); % utility to see new thresholds
     plotThreshold(threshold)
     % give control to user
     fprintf(1,'Change "threshold" manually, then type:\n  "plotThreshold(threshold)" to visualize it,\n  "dbcont" to continue.\n');
@@ -127,11 +131,10 @@ if opt.check
     % choose random examples
     idx = randperm(numel(deltaWaves.peaks),opt.check);
     intervals = deltaWaves.peaks(idx) + [-.5,.5];
-    i = 1;
     figure
     for i = 1 : opt.check
         clf, hold on
-        title(sprintf('%s Example %d / %d - l click: next, r click: stop',replace(basename,'_','\_'),i,opt.check));
+        title(sprintf('%s Example %d/%d - l-click: next, r-click: exit',replace(basename,'_','\_'),i,opt.check));
         xlabel('time (s)'),
         ylabel('LFP')
         PlotXY(Restrict(lfp,intervals(i,:)))
