@@ -130,7 +130,7 @@ end
 if opt.check
     % choose random examples
     idx = randperm(numel(deltaWaves.peaks),opt.check);
-    intervals = deltaWaves.peaks(idx) + [-.5,.5];
+    intervals = deltaWaves.peaks(idx) + [-1.5,1.5];
     figure
     for i = 1 : opt.check
         clf, hold on
