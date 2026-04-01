@@ -61,6 +61,7 @@ mode = 'ica';
 tracyWidom = false;
 controlBins = [];
 group = [];
+normalize = @zscore;
 
 % Check number of parameters
 if nargin < 1
@@ -115,6 +116,11 @@ for i = 1:2:length(varargin)
             group = varargin{i+1};
             if ~isdvector(group) && ~isempty(group)
                 error('Incorrect value for property ''group'' (type ''help <a href="matlab:help ActivityTemplates">ActivityTemplates</a>'' for details).');
+            end
+        case 'fun',
+            normalize = varargin{i+1};
+            if ~isa(normalize,'function_handle')
+                error('Incorrect value for property ''normalize'' (type ''help <a href="matlab:help ActivityTemplates">ActivityTemplates</a>'' for details).');
             end
         otherwise
             error(['Unknown property ''' num2str(varargin{i}) ''' (type ''help <a href="matlab:help ActivityTemplates">ActivityTemplates</a>'' for details).']);
@@ -176,8 +182,10 @@ if ~isempty(controlBins)
 end
 
 %% Create correlation matrix
-n = zscore(n);
-correlations = (1/(nBins-1))*(n'*n);
+n = normalize(n);
+n(isnan(n)) = 0;
+% correlations = (1/(nBins-1))*(n'*n);
+correlations = cov(n);
 
 if ~isempty(controlBins)
     correlations = correlations - controlCorrelations;
