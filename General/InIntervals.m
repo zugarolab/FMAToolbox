@@ -92,8 +92,8 @@ for i = 1:2:length(varargin),
 end
 
 % Sort if necessary
-if safe,
-	[values,order] = sortrows(values(:,1));
+if safe
+	[values,order] = sort(values(:,1:min(1,size(values,2))));
 end
 
 values = double(values); intervals = double(intervals); % prevent strange errors for large numbers with "singles" format
@@ -134,7 +134,7 @@ for i = 1:n,
 	if verbose, timeString = sprintf(['%' l '.2f %' l '.2f (%' l '.2f)'],from,to,to-from); disp([timeString ' - ' int2str(nMore) ' values']); end
 end
 
-if safe,
+if safe
 	status(order) = status;
 	interval(order) = interval;
 	index(order) = index;
