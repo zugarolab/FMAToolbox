@@ -1,7 +1,18 @@
 function timestamps = Unshift(timestamps,intervals)
 
-% The opposite of the option 'shift' in <a href="matlab:help Restrict">Restrict</a> 
-% NOTE: operates only on the first column of 'timestamps', as <a href="matlab:help InIntervals">InIntervals</a> 
+%Unshift - The opposite of option 'shift' in <a href="matlab:help Restrict">Restrict</a>.
+%
+%  USAGE
+%
+%    timestamps = Unshift(timestamps,intervals)
+%
+%    timestamps     time stamps to unshift, must be provided in the first column
+%    intervals      each row is [start, stop] time (s) of an interval,
+%                   previously used to shift 'timestamps'
+%
+%  NOTES
+%
+%    Operates only on the first column of 'timestamps', as <a href="matlab:help InIntervals">InIntervals</a>.
 
 % Copyright (C) 2018 Ralitsa Todorova
 %
