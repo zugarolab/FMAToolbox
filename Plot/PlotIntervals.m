@@ -1,4 +1,4 @@
-function PlotIntervals(intervals,varargin)
+function PlotIntervals(intervals,style,direction,opt)
 
 %PlotIntervals - Plot lines, rectangles or bars next to an axis to show interval limits.
 %
@@ -27,7 +27,7 @@ function PlotIntervals(intervals,varargin)
 %                   different from 'on'
 %     'bottom'      if 'on' (default), lower plotted rectangles to bottom of
 %                   of visual stack ('rectangles' mode)
-%                   
+%     'ax'          axis to plot on, default is default plot behavior
 %    =========================================================================
 %
 %  SEE
@@ -43,124 +43,92 @@ function PlotIntervals(intervals,varargin)
 % the Free Software Foundation; either version 3 of the License, or
 % (at your option) any later version.
 
-% Default values
-color = [0.9 0.9 0.9];
-alpha = 0.5;
-style = 'rectangles';
-direction = 'v';
-yLim = ylim;
-legendValue = 'on';
-bottom = 'on';
-
-if nargin < 1
-  error('Incorrect number of parameters (type ''help <a href="matlab:help PlotIntervals">PlotIntervals</a>'' for details).');
-end
-if size(intervals,2) ~= 2
-  error('Incorrect list of intervals (type ''help <a href="matlab:help PlotIntervals">PlotIntervals</a>'' for details).');
+arguments
+    intervals (:,2) {mustBeNumeric}
+    style (1,1) string = missing % kept for retrocompatibility
+    direction (1,1) string = missing % kept for retrocompatibility
+    opt.style (1,1) string {mustBeMember(opt.style,["rectangles","bars","axis"])} = "rectangles"
+    opt.direction (1,1) string {mustBeMember(opt.direction,["h","v"])} = "v"
+    opt.color = [0.9,0.9,0.9]
+    opt.alpha (1,1) {mustBeInRange(opt.alpha,0,1)} = 0.5
+    opt.ylim (1,2) = NaN
+    opt.legend (1,1) string = missing
+    opt.bottom {mustBeGeneralLogical} = true
+    opt.ax (1,1) matlab.graphics.axis.Axes = gca
 end
 
-% Backwards compatibility: previous versions used the syntax PlotIntervals(intervals,style,direction)
-parsed = false;
-if (nargin == 2 || nargin == 3) && isastring(lower(varargin{1}),'bars','rectangles','axis')
-    style = lower(varargin{1});
-    parsed = true;
+% validate input
+if ismissing(style)
+    style = opt.style;
+else
+    if ~ismember(style,["rectangles","bars","axis"])
+        error('Incorrect value for property ''style'' (type ''help <a href="matlab:help PlotIntervals">PlotIntervals</a>'' for details).')
+    end
 end
-if nargin == 3 && isastring(lower(varargin{2}),'h','v')
-    direction = lower(varargin{2});
-    parsed = true;
+if ismissing(direction)
+    direction = opt.direction;
+else
+    if ~ismember(direction,["h","v"])
+        error('Incorrect value for property ''direction'' (type ''help <a href="matlab:help PlotIntervals">PlotIntervals</a>'' for details).')
+    end
 end
-
-% Parse parameter list
-if ~parsed
-	for i = 1:2:length(varargin)
-		if ~ischar(varargin{i})
-			error(['Parameter ' num2str(i+1) ' is not a property (type ''help <a href="matlab:help PlotIntervals">PlotIntervals</a>'' for details).']);
-		end
-		switch lower(varargin{i})
-			case 'style'
-				style = lower(varargin{i+1});
-				if ~isastring(style,'bars','rectangles','axis')
-					error('Incorrect value for property ''style'' (type ''help <a href="matlab:help PlotIntervals">PlotIntervals</a>'' for details).');
-				end
-			case 'direction'
-				direction = lower(varargin{i+1});
-				if ~isastring(direction,'h','v')
-					error('Incorrect value for property ''direction'' (type ''help <a href="matlab:help PlotIntervals">PlotIntervals</a>'' for details).');
-				end
-			case 'color'
-				color = lower(varargin{i+1});
-				if ~isastring(color,'r','g','b','c','m','y','k','w') && ~isdvector(color,'#3','>=0','<=1')
-					error('Incorrect value for property ''color'' (type ''help <a href="matlab:help PlotIntervals">PlotIntervals</a>'' for details).');
-				end
-			case 'alpha'
-                alpha = varargin{i+1};
-                if ~isdscalar(alpha,'>=0','<=1')
-                    error('Incorrect value for property ''alpha'' (type ''help <a href="matlab:help PlotIntervals">PlotIntervals</a>'' for details).');
-                end
-            case 'ylim'
-                yLim = varargin{i+1};
-                if ~isdvector(yLim,'<')
-                    error('Incorrect value for property ''yLim'' (type ''help <a href="matlab:help PlotIntervals">PlotIntervals</a>'' for details).');
-                end
-            case 'legend'
-                legendValue = lower(varargin{i+1});
-            case 'bottom'
-                bottom = lower(varargin{i+1});
-                if islscalar(bottom), if bottom, bottom = 'on'; else, bottom = 'off'; end; end % accept boolean input for backwards compatibility
-                if ~isastring(bottom,'on','off')
-                    error('Incorrect value for property ''bottom'' (type ''help <a href="matlab:help PlotIntervals">PlotIntervals</a>'' for details).');
-                end
-            otherwise
-				error(['Unknown property ''' num2str(varargin{i}) ''' (type ''help <a href="matlab:help PlotIntervals">PlotIntervals</a>'' for details).']);
-		end
-	end
+color = validatecolor(opt.color);
+if diff(opt.ylim) <= 0
+    error('Incorrect value for property ''ylim'' (type ''help <a href="matlab:help PlotIntervals">PlotIntervals</a>'' for details).')
 end
-
-% Validate legend value
-if isastring(style,'bars') && ~isastring(legendValue,'on','off')
-    error('Incorrect value for property ''legend'' (type ''help <a href="matlab:help PlotIntervals">PlotIntervals</a>'' for details).');
+if style == "bars"
+    if ismissing(opt.legend)
+        opt.legend = 'on';
+    end
+    if ~ismember(opt.legend,["on","off"])
+        error('Incorrect value for property ''legend'' (type ''help <a href="matlab:help PlotIntervals">PlotIntervals</a>'' for details).');
+    end
+end
+bottom = GeneralLogical(opt.bottom);
+if any(isnan(opt.ylim))
+    opt.ylim = ylim(opt.ax);
 end
 
 if isempty(intervals)
     return
 end
 
-hold on;
-xLim = xlim;
+hold on
+xLim = xlim(opt.ax);
 if strcmp(style,'bars')
     for i = 1:size(intervals,1)
 		if strcmp(direction,'v')
-			plot([intervals(i,1) intervals(i,1)],yLim,'Color',[0 0.75 0],'HandleVisibility',legendValue);
-			plot([intervals(i,2) intervals(i,2)],yLim,'Color',[0.9 0 0],'HandleVisibility',legendValue);
+			plot(opt.ax,[intervals(i,1) intervals(i,1)],opt.ylim,'Color',[0 0.75 0],'HandleVisibility',opt.legend);
+			plot(opt.ax,[intervals(i,2) intervals(i,2)],opt.ylim,'Color',[0.9 0 0],'HandleVisibility',opt.legend);
 		else
-			plot(xLim,[intervals(i,1) intervals(i,1)],'Color',[0 0.75 0],'HandleVisibility',legendValue);
-			plot(xLim,[intervals(i,2) intervals(i,2)],'Color',[0.9 0 0],'HandleVisibility',legendValue);
+			plot(opt.ax,xLim,[intervals(i,1) intervals(i,1)],'Color',[0 0.75 0],'HandleVisibility',opt.legend);
+			plot(opt.ax,xLim,[intervals(i,2) intervals(i,2)],'Color',[0.9 0 0],'HandleVisibility',opt.legend);
 		end
     end
 
 elseif strcmp(style,'rectangles')
     if strcmp(direction,'v')
         x_coord = intervals(:,[1,1,2,2]).';
-        y_coord = yLim(ones(size(intervals,1),1),[1,2,2,1]).';
+        y_coord = opt.ylim(ones(size(intervals,1),1),[1,2,2,1]).';
     else
         x_coord = xLim(ones(size(intervals,1),1),[1,1,2,2]).';
         y_coord = intervals(:,[1,2,2,1]).';
     end
-    h = patch(x_coord,y_coord,color,'FaceAlpha',alpha,'LineStyle','none');
-    if strcmp(legendValue,'off')
+    h = patch(opt.ax,x_coord,y_coord,color,'FaceAlpha',opt.alpha,'LineStyle','none');
+    if strcmp(opt.legend,'off')
         RemoveFromLegend(h)
-    elseif ~strcmp(legendValue,'on')
-        h.DisplayName = legendValue;
+    elseif ~ismissing(opt.legend)
+        h.DisplayName = opt.legend;
     end
     % if requested, lower rectangles to bottom of visual stack
-    if strcmp(bottom,'on')
+    if bottom
         uistack(h,'bottom')
     end
 
 else
     % get current axis location
-    ax = gca; fig = gcf;
-    pos = ax.Position;
+    fig = gcf;
+    pos = opt.ax.Position;
     intervals = [intervals,nan(size(intervals,1),1)].';
     all_axes = findall(fig,'type','axes');
     % plot bars in invisible axis next to either x or y axis
@@ -174,10 +142,10 @@ else
         end
         if isempty(bar_ax)
             % create new bar axis where ticks of primary axis are
-            bar_ax = axes(fig,Position=[pos(1),pos(2)-0.01,pos(3),0.01],Color='none',XColor='none',YColor='none',XLim=ax.XLim,Tag='bar_ax_x'); hold on
-            linkaxes([ax,bar_ax],'x') % link horizontal zoom of invisible axis to primary axis
+            bar_ax = axes(fig,'Position',[pos(1),pos(2)-0.01,pos(3),0.01],'Color','none','XColor','none','YColor','none','XLim',opt.ax.XLim,'Tag','bar_ax_x'); hold on
+            linkaxes([opt.ax,bar_ax],'x') % link horizontal zoom of invisible axis to primary axis
         end
-        plot(bar_ax,intervals(:),ones(size(intervals(:)))*0.1,Color=color,LineWidth=4)
+        plot(bar_ax,intervals(:),ones(size(intervals(:)))*0.1,'Color',color,'LineWidth',4)
     else
         for axi = all_axes.'
             if axi.Tag == "bar_ax_y" && all(axi.Position([2,4]) == pos([2,4]))
@@ -185,15 +153,15 @@ else
             end
         end
         if isempty(bar_ax)
-            bar_ax = axes(fig,Position=[pos(1)-0.01,pos(2),0.01,pos(4)],Color='none',XColor='none',YColor='none',YLim=ax.YLim,Tag='bar_ax_y'); hold on
-            linkaxes([ax,bar_ax],'y')
+            bar_ax = axes(fig,'Position',[pos(1)-0.01,pos(2),0.01,pos(4)],'Color','none','XColor','none','YColor','none','YLim',opt.ax.YLim,'Tag','bar_ax_y'); hold on
+            linkaxes([opt.ax,bar_ax],'y')
         end
-        plot(bar_ax,ones(size(intervals(:)))*0.1,intervals(:),Color=color,LineWidth=4)
+        plot(bar_ax,ones(size(intervals(:)))*0.1,intervals(:),'Color',color,'LineWidth',4)
     end
     % add bars to legend
-    if ~strcmp(legendValue,'off') && ~strcmp(legendValue,'on')
-        plot(ax,nan,nan,Color=color,LineWidth=4,DisplayName=legendValue)
+    if ~ismissing(opt.legend) && opt.legend ~= "off"
+        plot(opt.ax,nan,nan,'Color',color,'LineWidth',4,'DisplayName',opt.legend)
     end
     % reset current axes, also raising it to top of visual stack
-    axes(ax)
+    axes(opt.ax)
 end
