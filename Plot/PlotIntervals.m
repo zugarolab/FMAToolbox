@@ -19,12 +19,12 @@ function PlotIntervals(intervals,style,direction,opt)
 %    -------------------------------------------------------------------------
 %     'style'       'bars' for lines, 'rectangles' (default), or 'axis'
 %     'direction'   'h' for horizontal, or 'v' for vertical (default)
-%     'color'       rectangle color ('rectangles' mode, default = grey)
-%     'alpha'       rectangle transparency ('rectangles' mode, default = 0.5)
-%     'ylim'        desired y-coordinates of the plotted areas ('v' mode)
-%     'legend'      if 'off', plotted elements won't appear in legend
-%                   (default = 'on'); value is also legend label if
-%                   different from 'on'
+%     'color'       rectangle color ('rectangles' or 'axis' mode mode,
+%                   default = grey)
+%     'alpha'       rectangle transparency ('rectangles', default = 0.5)
+%     'ylim'        desired y-coordinates of the plotted elements ('v' mode)
+%     'legend'      legend label; if 'off', plotted elements won't appear
+%                   in the legend
 %     'bottom'      if 'on' (default), lower plotted rectangles to bottom of
 %                   of visual stack ('rectangles' mode)
 %     'ax'          axis to plot on, default is default plot behavior
@@ -72,7 +72,11 @@ else
         error('Incorrect value for property ''direction'' (type ''help <a href="matlab:help PlotIntervals">PlotIntervals</a>'' for details).')
     end
 end
-color = validatecolor(opt.color);
+try
+    color = validatecolor(opt.color);
+catch ME
+    throw(ME)
+end
 if diff(opt.ylim) <= 0
     error('Incorrect value for property ''ylim'' (type ''help <a href="matlab:help PlotIntervals">PlotIntervals</a>'' for details).')
 end
@@ -93,7 +97,7 @@ if isempty(intervals)
     return
 end
 
-hold on
+hold(opt.ax,'on')
 xLim = xlim(opt.ax);
 if strcmp(style,'bars')
     for i = 1:size(intervals,1)
@@ -127,7 +131,7 @@ elseif strcmp(style,'rectangles')
 
 else
     % get current axis location
-    fig = gcf;
+    fig = ancestor(opt.ax,'figure');
     pos = opt.ax.Position;
     intervals = [intervals,nan(size(intervals,1),1)].';
     all_axes = findall(fig,'type','axes');
