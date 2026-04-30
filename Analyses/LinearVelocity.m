@@ -88,6 +88,12 @@ end
 % between subsessions at the borders (due to smoothing, the bordering data
 % points influence eachother)
 if strcmp(split,'on')
+    
+    % If varargin still has split=on, the function enters an infinite loop.
+    % Prevent it by deleting this argument from the new call within the
+    % function
+    varargin([find(strcmp(varargin,'split')) find(strcmp(varargin,'split'))+1]) = [];
+    
     gaps = diff(X(:,1));
     splitIndx = find(gaps>maxGap);
     
