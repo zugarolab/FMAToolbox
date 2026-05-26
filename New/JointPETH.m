@@ -1,4 +1,4 @@
-function [joint,expected,difference] = JointPETH(PETH1, PETH2,smooth)
+function [joint,expected,difference,corrected] = JointPETH(PETH1, PETH2,smooth)
 
 %JointPETH - produce a joint histogram for the co-occurrence of two sets of signals around events. 
 % PETH1 and PETH2 should be in the format of PETH, see example usage below.
@@ -42,3 +42,5 @@ expected = expected/size(PETH1,1);
 joint = sqrt(joint); % make the final result in Hz, rather than Hz^2
 expected = sqrt(expected); % make the final result in Hz, rather than Hz^2
 difference = joint - expected;
+corrected = CircularShift(difference,ceil(size(difference,2)/2)-(1:size(difference,2)))';
+
