@@ -113,12 +113,9 @@ if isempty(event)
     t = linspace(duration(1),duration(2),nBins);
     return
 end
-% if size(data,2)==1 && exist('fastPETH')
-%     peths = fastPETH(data,event,duration);
-%     j = size(event,1)*ones(size(peths));
-% else
-    [peths, j] = Sync(data, event, 'durations', duration);
-% end
+
+duration = duration+[-1 1]*diff(duration)/(nBins - 1)/2; % apply a transformation to get the bin centers (not edges) at the desired locations
+[peths, j] = Sync(data, event, 'durations', duration);
 [m,~,t] = SyncHist(peths,j, 'nBins', nBins, 'smooth', smooth, 'mode', 'mean', 'durations', duration);
 m = m(:)';
 if isempty(m)
