@@ -75,8 +75,8 @@ sequence.pQuadrant =  sum(qShuffled>=quadrantScore,2)./sum(~isnan(qShuffled),2);
 shuffled.score = rShuffled;
 shuffled.lineStart = aShuffled;
 shuffled.lineStop = bShuffled;
+shuffled.slope = (aShuffled-bShuffled)./size(matrix,2);
 shuffled.weightedCorrelation = cShuffled;
-shuffled.zWeighted = cShuffled;
 shuffled.jump.mean = jumpShuffled;
 shuffled.jump.max = maxJumpShuffled;
 
