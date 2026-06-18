@@ -20,21 +20,22 @@ function [Accuracy, cvModel, testAccuracy, predictedFeatures, Model] = svmDecode
 %    =========================================================================
 %
 %  OUTPUTS
-%     Accuracy      Cross-validated accuracy using training set
-%     cvModel       Cross-validated SVM model
-%     testAccuracy  Accuracy using test set (on train Features or on testFeatures if provided)
-%     Model         SVM model (trained on full training set)
+%     Accuracy          Cross-validated accuracy using training set
+%     cvModel           Cross-validated SVM model   
+%     testAccuracy      Accuracy using test set if provided (on train Features or on testFeatures if provided)
+%     predictedFeatures Predicted Features with testData if provided
+%     Model             SVM model (trained on full training set)
 %
 %  EXAMPLES
 %
 %     % Train model to decode arm identity based on neurons' firing rates
-%     [acc, model] = svmDecode(FRs, armID)
+%     [acc, cvmodel, ~, ~, model] = svmDecode(FRs, armID) / predictedFeatures for each cross-validation set can be found in cvmodel.Trained{nCVset}.SupportVectorLabels  
 %
 %     % Train on mean FR of trial, try to predict with firing rate restricted to a part of the trial
-%     [acc, model] = svmDecode(FRs, armID, 'testData', restrictedFR)
+%     [acc, cvmodel, acc2, predicted, model] = svmDecode(FRs, armID, 'testData', restrictedFR)
 %
 %     %  Train to decode arm identity based on neurons' firing rates on maze 1, try to predict arm identity in maze 2 based on neurons' firing rates on maze 2
-%     [acc, model] = svmDecode(FRs, armID, 'testData', FRs2, 'testFeatures', armID2)
+%     [acc, cvmodel, acc2, predicted, model] = svmDecode(FRs, armID, 'testData', FRs2, 'testFeatures', armID2)
 
 %% Optional parameters
 p = inputParser;
