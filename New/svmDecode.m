@@ -1,4 +1,4 @@
-function [Accuracy, cvModel, testAccuracy, Model] = svmDecode(trainData, Features, varargin)
+function [Accuracy, cvModel, testAccuracy, predictedFeatures, Model] = svmDecode(trainData, Features, varargin)
 
 % svmDecode - Train SVM to decode features from data and evaluate accuracy
 %
@@ -6,20 +6,20 @@ function [Accuracy, cvModel, testAccuracy, Model] = svmDecode(trainData, Feature
 %
 %    [accuracy, model] = svmDecode(trainData, Features, <optional parameters>)
 %
-%  INPUT
-%     trainData     Training data matrix (n samples × n features)
-%     Features      Class labels / features to decode (n samples × 1)
+%  INPUTS
+%     trainData     Training data matrix (n x m) : example : the average firing rate of m neurons for n trials
+%     Features      Class labels / features to decode (n × 1) : example : the arm ID (1/2) for n trials
 %
 %    <optional parameters> can be :
 %    =========================================================================
 %     Properties    Values
 %    -------------------------------------------------------------------------
-%     'KFold'        Number of cross-validation folds (default: 2)
-%     'testData'     Optional test data matrix (n samples × n features), if not provided, accuracy will be from crossvalidated train data
-%     'testFeatures' Optional features to decode with test data (n samples × 1), if not provided, the accuracy will be computed by comparing with Features
+%     'KFold'        Number of cross-validation folds (default: 5) ; 5 means it will group features in 5 groups and will average  5 80% train/20% test combination
+%     'testData'     Optional test data matrix (n2 x m), if not provided, accuracy will be from crossvalidated train data (if testFeatures not provided n2 must be equal to n1)
+%     'testFeatures' Optional features to decode with test data (n2 × 1), if not provided, the accuracy will be computed by comparing with Features
 %    =========================================================================
 %
-%  OUTPUT
+%  OUTPUTS
 %     Accuracy      Cross-validated accuracy using training set
 %     cvModel       Cross-validated SVM model
 %     testAccuracy  Accuracy using test set (on train Features or on testFeatures if provided)
@@ -44,6 +44,7 @@ addParameter(p, 'testFeatures', []);
 parse(p, varargin{:});
 KFold = p.Results.KFold;
 testData = p.Results.testData;
+testFeatures = p.Results.testFeatures;
 
 %% Function
 
@@ -71,9 +72,12 @@ if ~isempty(testData)
         
     % Else compare to train features    
     else
-        testAccuracy = predictedFeatures;
+        testAccuracy =  mean(predictedFeatures == Features);
     end
-
+    
+else 
+    testAccuracy = [];
+    predictedFeatures = [];
 end
 
 
