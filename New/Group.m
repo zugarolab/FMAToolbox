@@ -25,10 +25,12 @@ for i=1:length(varargin)
     if vectors
         grouped = [grouped; varargin{i}(:) i*ones(size(varargin{i}(:),1),1)];
     else
-        try
-            grouped = [grouped; varargin{i} i*ones(size(varargin{i}(:,1),1),1)];
-        catch
-            error('If you provide matrices, please make sure these matrices have the same number of columns.');
+        if ~isempty(varargin{i})
+            try
+                grouped = [grouped; varargin{i} i*ones(size(varargin{i}(:,1),1),1)];
+            catch
+                error('If you provide matrices, please make sure these matrices have the same number of columns.');
+            end
         end
     end
 end
