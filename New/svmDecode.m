@@ -31,7 +31,7 @@ function [predictedFeatures, accuracy, model] = svmDecode(trainingData, training
 %
 %  OUTPUTS
 %     predictedFeatures Predicted features with testData if provided
-%     accuracy          Cross-validated (when kFold>1) accuracy using training set
+%     accuracy          Cross-validated (when kFold>1) balanced accuracy
 %     model             SVM model (non-cross validated)
 %
 %  EXAMPLES
@@ -88,14 +88,34 @@ else
 end
 
 if ~isempty(testFeatures)
-    accuracy = mean(predictedFeatures == testFeatures);
+    confusionMatrix = confusionmat(testFeatures, predictedFeatures);
 else % estimate accuracy using training data
     if kFold>1
-        accuracy = 1 - kfoldLoss(cvmodel);
+        predictedFeatures = kfoldPredict(cvmodel);
+        confusionMatrix = confusionmat(trainingFeatures, predictedFeatures);
     else
         predictedTrainingFeatures = predict(model, trainingData);
-        accuracy = mean(predictedTrainingFeatures == trainingFeatures);
+        confusionMatrix = confusionmat(trainingFeatures, predictedTrainingFeatures);
     end
 end
+
+recallPerClass = diag(confusionMatrix) ./ sum(confusionMatrix,2);
+accuracy = mean(recallPerClass);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
